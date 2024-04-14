@@ -2,14 +2,16 @@ package de.srendi.advancedperipherals.common.util;
 
 import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.configuration.APConfig;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraftforge.common.world.ForgeChunkManager;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.server.ServerLifecycleHooks;
@@ -40,15 +42,11 @@ public class ChunkManager extends SavedData {
     public static ChunkManager load(@NotNull CompoundTag data) {
         ChunkManager manager = new ChunkManager();
         CompoundTag forcedData = data.getCompound(FORCED_CHUNKS_TAG);
+        AdvancedPeripherals.debug("Loading chunk manager from NBT " + data, Level.WARN);
         for (String key : forcedData.getAllKeys()) {
             manager.forcedChunks.put(UUID.fromString(key), LoadChunkRecord.deserialize(forcedData.getCompound(key)));
         }
         return manager;
-    }
-
-    @SubscribeEvent
-    public static void beforeServerStopped(ServerStoppingEvent event) {
-        ChunkManager.get(event.getServer().overworld()).stop();
     }
 
     @SubscribeEvent
@@ -59,11 +57,20 @@ public class ChunkManager extends SavedData {
     @SubscribeEvent
     public static void serverTick(TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
-            tickCounter++;
-            if (tickCounter % (APConfig.PERIPHERALS_CONFIG.chunkLoadValidTime.get() / 2) == 0) {
+            tickCounter += 2;
+            if (tickCounter >= APConfig.PERIPHERALS_CONFIG.chunkLoadValidTime.get()) {
+                tickCounter = 0
                 ChunkManager.get(ServerLifecycleHooks.getCurrentServer().overworld()).cleanup();
             }
         }
+    }
+ 
+    private static boolean forceChunk(UUID owner, ServerLevel level, ChunkPos pos) {
+        return ForgeChunkManager.forceChunk(level, AdvancedPeripherals.MOD_ID, owner, pos.x, pos.z, true, true);
+    }
+
+    private static boolean unforceChunk(UUID owner, ServerLevel level, ChunkPos pos) {
+        return ForgeChunkManager.forceChunk(level, AdvancedPeripherals.MOD_ID, owner, pos.x, pos.z, false, true);
     }
 
     public synchronized boolean addForceChunk(ServerLevel level, UUID owner, ChunkPos pos) {
@@ -163,6 +170,14 @@ public class ChunkManager extends SavedData {
             return dimensionName;
         }
 
+        public int getRadius() {
+            return radius;
+        }
+
+        public void setRadius(int radius) {
+            this.radius = radius;
+        }
+
         public void touch() {
             lastTouch = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC);
         }
@@ -176,6 +191,7 @@ public class ChunkManager extends SavedData {
             CompoundTag tag = new CompoundTag();
             tag.putString(DIMENSION_NAME_TAG, dimensionName);
             tag.put(POS_TAG, NBTUtil.toNBT(pos));
+            tag.putInt(RADIUS_TAG, radius);
             return tag;
         }
     }
