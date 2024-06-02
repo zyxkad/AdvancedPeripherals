@@ -1,0 +1,179 @@
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+def isSnapshotVersion = project.hasProperty('teamcityBuild')
+version = "${mod_version}-${project.name}" + (isSnapshotVersion ? "-SNAPSHOT" : "")
+group = 'de.srendi.advancedperipherals'
+
+base {
+    archivesName = version
+}
+
+def static getenv(path = ".env") {
+    def env = [:]
+
+    def file = new File(path)
+    if (file.exists()) {
+        file.eachLine { line ->
+            def (name, value) = line.tokenize("=")
+            if (value != null) {
+                env[name.trim()] = value.trim()
+            }
+        }
+    }
+
+    return env
+}
+
+def secretEnv = getenv()
+def curseforgeKey = secretEnv["CURSEFORGE_KEY"] ?: System.getenv("CURSEFORGE_KEY") ?: ''
+def modrinthKey = secretEnv["MODRINTH_KEY"] ?: System.getenv("MODRINTH_KEY")
+def repositoryName = secretEnv["PUBLIC_REP_NAME"] ?: System.getenv("PUBLIC_REP_NAME")
+def repositoryKey = secretEnv["PUBLIC_REP_KEY"] ?: System.getenv("PUBLIC_REP_KEY")
+def githubKey = secretEnv["GITHUB_KEY"] ?: System.getenv("GITHUB_KEY")
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(java_version)
+    withSourcesJar()
+    // withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+    // https://docs.gradle.org/current/userguide/declaring_repositories.html#declaring_content_exclusively_found_in_one_repository
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Sponge'
+                url = 'https://repo.spongepowered.org/repository/maven-public'
+            }
+        }
+        filter { includeGroupAndSubgroups("org.spongepowered") }
+    }
+    maven {
+        name = 'BlameJared'
+        url = 'https://maven.blamejared.com'
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains:annotations:${jb_annotations}"
+}
+
+// // Declare capabilities on the outgoing configurations.
+// // Read more about capabilities here: https://docs.gradle.org/current/userguide/component_capabilities.html#sec:declaring-additional-capabilities-for-a-local-component
+// ['apiElements', 'runtimeElements', 'sourcesElements'].each { variant ->
+//     configurations."$variant".outgoing {
+//         capability("$group:${version}:$mod_version")
+//         capability("$group:$mod_id-${project.name}-${minecraft_version}:$mod_version")
+//         capability("$group:$mod_id:$mod_version")
+//     }
+//     publishing.publications.configureEach {
+//         suppressPomMetadataWarningsFor(variant)
+//     }
+// }
+
+jar {
+    manifest({
+        attributes(["Specification-Title"     : "advancedperipherals",
+                    "Specification-Vendor"    : "Srendi",
+                    "Specification-Version"   : "${version}",
+                    "Implementation-Title"    : "advancedperipherals",
+                    "Implementation-Version"  : "${version}",
+                    "Implementation-Vendor"   : "Srendi",
+                    "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")])
+    })
+    archiveFileName = "AdvancedPeripherals-${minecraft_version}-${mod_version}.jar"
+    finalizedBy('reobfJar')
+}
+
+processResources {
+    var replaceProperties = [minecraft_version         : minecraft_version,
+                             forge_version             : forge_version,
+                             loader_version            : loader_version,
+                             mod_id                    : mod_id,
+                             mod_name                  : mod_name,
+                             version                   : mod_version,
+                             cc_version                : cc_version,
+                             curios_version            : curios_version,
+                             minecolonies_version      : minecolonies_version,
+                             appliedenergistics_version: appliedenergistics_version,
+                             patchouli_version         : patchouli_version,
+                             refinedstorage_version    : refinedstorage_version,
+                             botania_version           : botania_version,
+                             mekanism_version          : mekanism_version,
+                             ae2things_version         : ae2things_version,
+                             powah_version             : powah_version,]
+
+    inputs.properties replaceProperties
+
+    filesMatching(['pack.mcmeta', 'fabric.mod.json', 'META-INF/mods.toml', 'META-INF/neoforge.mods.toml', '*.mixins.json']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+publishing {
+    publications { PublicationContainer publicationContainer ->
+        publicationContainer.register("maven", MavenPublication) { MavenPublication publication ->
+            publication.from((SoftwareComponent) components.java)
+            publication.groupId = project.group
+            publication.version = isSnapshotVersion ? "${minecraft_version}-${mod_version}-${project.teamcityBuild}" : "${minecraft_version}-${mod_version}"
+            publication.artifactId =  isSnapshotVersion ? "${mod_id}-snapshots" : "${mod_id}"
+            publication.artifacts = [jar]
+            publication.pom {
+                name.set("${mod_name}")
+                packaging = 'jar'
+                description.set('Advanced Peripherals provides multiple extensions for ComputerCraft in form of Peripherals, Pocket Upgrades, Turtles or new gear.\n' +
+                        'It also integrates with multiple third party mods.')
+                url.set('https://docs.intelligence-modding.de/')
+                scm {
+                    url.set('https://github.com/IntelligenceModding/AdvancedPeripherals.git')
+                }
+                issueManagement {
+                    system.set('github')
+                    url.set('https://github.com/IntelligenceModding/AdvancedPeripherals/issues')
+                }
+                licenses {
+                    license {
+                        name.set('Apache-2.0')
+                        distribution.set('repo')
+                    }
+                }
+                withXml {
+                    NodeList dependencies = asNode().dependencies
+                    NodeList allDeps = dependencies.'*'
+
+                    // Remove forge deps
+                    allDeps.<Node> findAll() { Node el ->
+                        el.artifactId.text() == 'forge' && el.groupId.text() == 'net.minecraftforge'
+                    }.forEach() { Node el ->
+                        el.parent().remove(el)
+                    }
+                    //remove ForgeGradle's mapped suffix from versions & set as optional so anyone else doesn't inherit them
+                    allDeps.<Node> findAll() { Node el ->
+                        el.version.text().contains('_mapped_')
+                    }.each { Node el ->
+                        el.version.each { Node version ->
+                            def versionText = version.text()
+                            version.setValue(versionText.substring(0, versionText.indexOf('_mapped_')))
+                        }
+                        el.appendNode('optional', true)
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "public"
+            url = "https://mvn.intelligence-modding.de/Intelligence"
+            credentials {
+                username = repositoryName
+                password = repositoryKey
+            }
+        }
+    }
+}
