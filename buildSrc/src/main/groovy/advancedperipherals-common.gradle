@@ -5,11 +5,11 @@ plugins {
 }
 
 def isSnapshotVersion = project.hasProperty('teamcityBuild')
-version = "${mod_version}-${project.name}" + (isSnapshotVersion ? "-SNAPSHOT" : "")
+version = "${mod_version}"
 group = 'de.srendi.advancedperipherals'
 
 base {
-    archivesName = version
+    archivesName = "${mod_version}-${project.name}" + (isSnapshotVersion ? "-SNAPSHOT" : "")
 }
 
 def static getenv(path = ".env") {
@@ -69,7 +69,7 @@ dependencies {
 // Read more about capabilities here: https://docs.gradle.org/current/userguide/component_capabilities.html#sec:declaring-additional-capabilities-for-a-local-component
 ['apiElements', 'runtimeElements', 'sourcesElements'].each { variant ->
     configurations."$variant".outgoing {
-        capability("$group:${version}:$mod_version")
+        capability("$group:${base.archivesName.get()}:$mod_version")
         capability("$group:$mod_id-${project.name}-${minecraft_version}:$mod_version")
         capability("$group:$mod_id:$mod_version")
     }
