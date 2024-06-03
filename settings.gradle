@@ -1,17 +1,24 @@
 pluginManagement {
     repositories {
+        mavenCentral()
         gradlePluginPortal()
+        // maven {
+        //     name = 'MinecraftForge'
+        //     url = 'https://maven.minecraftforge.net/'
+        //     content {
+        //         includeGroup("net.minecraftforge")
+        //         includeGroup("net.minecraftforge.gradle")
+        //         includeGroup("org.spongepowered.mixin")
+        //         includeGroup("org.spongepowered")
+        //     }
+        // }
+        // maven {
+        //     url = 'https://maven.parchmentmc.org'
+        // }
         maven {
-            name = 'MinecraftForge'
-            url = 'https://maven.minecraftforge.net/'
-            content {
-                includeGroup("net.minecraftforge")
-                includeGroup("net.minecraftforge.gradle")
-                includeGroup("org.spongepowered.mixin")
-                includeGroup("org.spongepowered")
-            }
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
         }
-        maven { url = 'https://maven.parchmentmc.org' }
     }
 }
 
