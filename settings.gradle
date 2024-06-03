@@ -11,7 +11,12 @@ pluginManagement {
                 includeGroup("org.spongepowered")
             }
         }
-        maven { url = 'https://maven.parchmentmc.org' }
+        maven {
+            url = 'https://maven.parchmentmc.org'
+        }
+        maven {
+            url = 'https://repo.spongepowered.org/repository/maven-public'
+        }
     }
 }
 
