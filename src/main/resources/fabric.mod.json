@@ -21,6 +21,9 @@
   "entrypoints": {
     "main": [
       "de.srendi.advancedperipherals.AdvancedPeripherals"
+    ],
+    "client": [
+      "de.srendi.advancedperipherals.client.ClientRegistry"
     ]
   },
   "mixins": [
