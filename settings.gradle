@@ -1,22 +1,14 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         mavenCentral()
+        gradlePluginPortal()
         maven {
-            name = 'NeoForged'
-            url = 'https://maven.neoforged.net/releases'
-
-            content {
-                includeGroup("net.minecraftforge")
-                includeGroup("net.neoforged.gradle")
-                includeGroup("net.neoforged")
-                includeGroup("org.spongepowered.mixin")
-                includeGroup("org.spongepowered")
-            }
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
         }
     }
 }
 
-plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
-}
+// plugins {
+//     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
+// }

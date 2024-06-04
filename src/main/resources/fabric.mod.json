@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+
+  "name": "Advanced Peripherals",
+  "description": "Advanced Peripherals provides multiple extensions for ComputerCraft in form of Peripherals, Pocket Upgrades, Turtles or new gear.\nIt also integrates with multiple third party mods.",
+  "authors": [
+    "Srendi",
+    "zyxkad"
+  ],
+  "contact": {
+    "homepage": "https://docs.intelligence-modding.de/",
+    "sources": "https://github.com/Seniorendi/AdvancedPeripherals"
+  },
+
+  "license": "Apache-2.0",
+  "icon": "pack.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "de.srendi.advancedperipherals.AdvancedPeripherals"
+    ],
+    "client": [
+      "de.srendi.advancedperipherals.client.ClientRegistry"
+    ]
+  },
+  "mixins": [
+    "advancedperipherals.mixins.json"
+  ],
+
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": "${fabric_api_version}",
+    "minecraft": "${minecraft_version}",
+    "java": ">=${java_version}",
+    "computercraft": ">=${cc_version}"
+  },
+  "suggests": {
+    "curios": ">=${curios_version}",
+    "ae2": ">=${appliedenergistics_version}",
+    "create": ">=0.5.1",
+    "botaina": ">=${botania_version}"
+  }
+}

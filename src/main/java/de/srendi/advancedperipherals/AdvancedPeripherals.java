@@ -1,9 +1,10 @@
 package de.srendi.advancedperipherals;
 
+import net.fabricmc.api.ModInitializer;
+
 import de.srendi.advancedperipherals.common.addons.APAddons;
 import de.srendi.advancedperipherals.common.configuration.APConfig;
 import de.srendi.advancedperipherals.common.setup.Registration;
-
 import de.srendi.advancedperipherals.network.APNetworking;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
@@ -18,8 +19,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Random;
 
-@Mod(AdvancedPeripherals.MOD_ID)
-public class AdvancedPeripherals {
+public class AdvancedPeripherals implements ModInitializer {
 
     public static final String MOD_ID = "advancedperipherals";
     public static final String NAME = "Advanced Peripherals";
@@ -51,7 +51,8 @@ public class AdvancedPeripherals {
         return new ResourceLocation(MOD_ID, resource);
     }
 
-    public void commonSetup(FMLCommonSetupEvent event) {
+    @Override
+    public void onInitialize() {
         APAddons.commonSetup();
         APNetworking.init();
     }
