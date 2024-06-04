@@ -179,6 +179,13 @@ minecraft {
 repositories {
     mavenCentral()
     maven {
+        name = "Parchment"
+        url = "https://maven.parchmentmc.org"
+        content {
+            includeGroup "org.parchmentmc.data"
+        }
+    }
+    maven {
         name = "Squiddev maven cct"
         url = "https://squiddev.cc/maven"
         content {
@@ -348,7 +355,11 @@ dependencies {
 
     compileOnly "org.jetbrains:annotations:${jb_annotations}"
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    mappings "net.fabricmc:yarn:${yarn_mappings}:v2"
+    // mappings "net.fabricmc:yarn:${yarn_mappings}:v2"
+    mappings loom.layered {
+        officialMojangMappings()
+        parchment "org.parchmentmc.data:parchment-${minecraft_version}:${parchment_version}@zip"
+    }
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     modCompileOnly "cc.tweaked:cc-tweaked-${minecraft_version}-fabric-api:${cc_version}"
     modRuntimeOnly "cc.tweaked:cc-tweaked-${minecraft_version}-fabric:${cc_version}"

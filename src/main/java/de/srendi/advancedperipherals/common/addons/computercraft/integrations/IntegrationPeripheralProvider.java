@@ -2,7 +2,8 @@ package de.srendi.advancedperipherals.common.addons.computercraft.integrations;
 
 import dan200.computercraft.api.ComputerCraftAPI;
 import dan200.computercraft.api.peripheral.IPeripheral;
-import dan200.computercraft.api.peripheral.IPeripheralProvider;
+import dan200.computercraft.impl.Peripherals; // TODO: not public API?
+import dan200.computercraft.shared.peripheral.generic.ComponentLookup;
 import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.util.Platform;
 import de.srendi.advancedperipherals.lib.integrations.IPeripheralIntegration;
@@ -12,7 +13,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.NoteBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.util.LazyOptional;
+// import net.minecraftforge.common.util.LazyOptional;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;
@@ -21,7 +22,7 @@ import java.util.PriorityQueue;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public class IntegrationPeripheralProvider implements IPeripheralProvider {
+public class IntegrationPeripheralProvider implements ComponentLookup<?> {
 
     private static final String[] SUPPORTED_MODS = new String[]{"powah", "create", "mekanism", "botania"};
 
@@ -29,52 +30,6 @@ public class IntegrationPeripheralProvider implements IPeripheralProvider {
 
     private static void registerIntegration(IPeripheralIntegration integration) {
         integrations.add(integration);
-    }
-
-    /**
-     * Register tile entity integration, better use this method over manual TileEntityIntegration creation, because this method provides type check
-     *
-     * @param integration integration generator
-     * @param tileClass   target integration class
-     * @param <T>         target integration
-     *
-     * @deprecated will be removed in 1.21. Use generics instead, see existing integrations
-     */
-    @Deprecated(forRemoval = true, since = "1.20.1-0.7.39")
-    public static <T extends BlockEntity> void registerBlockEntityIntegration(Function<BlockEntity, BlockEntityIntegrationPeripheral<T>> integration, Class<T> tileClass) {
-        registerIntegration(new BlockEntityIntegration(integration, tileClass::isInstance));
-    }
-
-    /**
-     * Register tile entity integration, better use this method over manual TileEntityIntegration creation, because this method provides type check
-     *
-     * @param integration integration generator
-     * @param tileClass   target integration class
-     * @param priority    Integration priority, lower is better
-     * @param <T>         target integration
-     *
-     * @deprecated will be removed in 1.21. Use generics instead, see existing integrations
-     */
-    @Deprecated(forRemoval = true, since = "1.20.1-0.7.39")
-    public static <T extends BlockEntity> void registerBlockEntityIntegration(Function<BlockEntity, BlockEntityIntegrationPeripheral<T>> integration, Class<T> tileClass, int priority) {
-        registerIntegration(new BlockEntityIntegration(integration, tileClass::isInstance, priority));
-    }
-
-    /**
-     * Register tile entity integration, better use this method over manual TileEntityIntegration creation, because this method provides type check
-     * Provides a predicate for specific block entity checks
-     *
-     * @param integration integration generator
-     * @param tileClass   target integration class
-     * @param predicate   target block entity
-     * @param priority    Integration priority, lower is better
-     * @param <T>         target integration
-     *
-     * @deprecated will be removed in 1.21. Use generics instead, see existing integrations
-     */
-    @Deprecated(forRemoval = true, since = "1.20.1-0.7.39")
-    public static <T extends BlockEntity> void registerBlockEntityIntegration(Function<BlockEntity, BlockEntityIntegrationPeripheral<T>> integration, Class<T> tileClass, Predicate<T> predicate, int priority) {
-        registerIntegration(new BlockEntityIntegration(integration, tile -> tileClass.isInstance(tile) && predicate.test((T) tile), priority));
     }
 
     public static void load() {
@@ -89,15 +44,17 @@ public class IntegrationPeripheralProvider implements IPeripheralProvider {
             });
             if (integration.isEmpty()) AdvancedPeripherals.LOGGER.warn("Failed to load integration for {}", mod);
         }
+        Peripherals.addGenericLookup(new IntegrationPeripheralProvider());
     }
 
-    @NotNull
+    @Nullable
     @Override
-    public LazyOptional<IPeripheral> getPeripheral(@NotNull Level level, @NotNull BlockPos blockPos, @NotNull Direction direction) {
+    public Object find(ServerLevel level, BlockPos blockPos, BlockState state, BlockEntity blockEntity, Direction direction, Runnable invalidate) {
         for (IPeripheralIntegration integration : integrations) {
-            if (integration.isSuitable(level, blockPos, direction))
-                return LazyOptional.of(() -> integration.buildPeripheral(level, blockPos, direction));
+            if (integration.isSuitable(level, blockPos, direction)) {
+                return integration.buildPeripheral(level, blockPos, direction);
+            }
         }
-        return LazyOptional.empty();
+        return null;
     }
 }
