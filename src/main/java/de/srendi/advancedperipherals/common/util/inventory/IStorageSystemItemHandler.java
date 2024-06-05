@@ -1,10 +1,18 @@
 package de.srendi.advancedperipherals.common.util.inventory;
 
+import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
-public interface IStorageSystemItemHandler extends IItemHandler {
+public interface IStorageSystemItemHandler extends Container {
+
+    @NotNull
+    ItemStack insertItem(@NotNull ItemStack stack, boolean simulate);
+
+    @Override
+    default void setItem(int slot, ItemStack stack) {
+        insertItem(stack, false);
+    }
 
     /**
      * Used to extract an item from the system via a peripheral.
@@ -19,22 +27,23 @@ public interface IStorageSystemItemHandler extends IItemHandler {
     ItemStack extractItem(ItemFilter filter, int count, boolean simulate);
 
     /*
-    These 5 methods are ignored in our transferring logic. Storage Systems do not respect slots and to extract we need a filter
+    These 4 methods are ignored in our transferring logic. Storage Systems do not respect slots and to extract we need a filter
      */
 
     @Override
-    default int getSlots() {
-        return 0;
-    }
-
-    @Override
-    default int getSlotLimit(int slot) {
+    default int getContainerSize() {
         return 0;
     }
 
     @NotNull
     @Override
-    default ItemStack extractItem(int slot, int amount, boolean simulate) {
+    default ItemStack removeItem(int slot, int amount) {
+        return ItemStack.EMPTY;
+    }
+
+    @NotNull
+    @Override
+    default ItemStack removeItemNoUpdate(int slot) {
         return ItemStack.EMPTY;
     }
 
@@ -42,10 +51,5 @@ public interface IStorageSystemItemHandler extends IItemHandler {
     @Override
     default ItemStack getStackInSlot(int slot) {
         return ItemStack.EMPTY;
-    }
-
-    @Override
-    default boolean isItemValid(int slot, @NotNull ItemStack stack) {
-        return false;
     }
 }

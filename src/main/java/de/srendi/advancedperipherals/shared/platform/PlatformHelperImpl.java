@@ -9,21 +9,14 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.arguments.ArgumentType;
-import de.srendi.advancedperipherals.AdvancedPeripherals;
 import dan200.computercraft.api.network.wired.WiredElement;
 import dan200.computercraft.api.node.wired.WiredElementLookup;
 import dan200.computercraft.api.peripheral.IPeripheral;
 import dan200.computercraft.api.peripheral.PeripheralLookup;
-import dan200.computercraft.impl.Peripherals;
-import dan200.computercraft.mixin.ArgumentTypeInfosAccessor;
-import dan200.computercraft.shared.config.ConfigFile;
-import dan200.computercraft.shared.network.MessageType;
-import dan200.computercraft.shared.network.NetworkMessage;
-import dan200.computercraft.shared.network.client.ClientNetworkContext;
-import dan200.computercraft.shared.network.container.ContainerData;
-import dan200.computercraft.shared.platform.RegistrationHelper;
-import dan200.computercraft.shared.platform.RegistryWrappers;
-import dan200.computercraft.shared.util.InventoryUtil;
+import de.srendi.advancedperipherals.AdvancedPeripherals;
+import de.srendi.advancedperipherals.network.ClientNetworkContext;
+import de.srendi.advancedperipherals.network.MessageType;
+import de.srendi.advancedperipherals.network.NetworkMessage;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
@@ -95,11 +88,6 @@ public class PlatformHelperImpl implements PlatformHelper {
         return FabricLoader.getInstance().isDevelopmentEnvironment();
     }
 
-    @Override
-    public ConfigFile.Builder createConfigBuilder() {
-        return new FabricConfigFile.Builder();
-    }
-
     @SuppressWarnings("unchecked")
     private static <T> Registry<T> getRegistry(ResourceKey<Registry<T>> id) {
         var registry = (Registry<T>) BuiltInRegistries.REGISTRY.get(id.location());
@@ -158,21 +146,15 @@ public class PlatformHelperImpl implements PlatformHelper {
         return FabricBlockEntityTypeBuilder.create(factory::apply).addBlock(block).build();
     }
 
-    @Override
-    public <A extends ArgumentType<?>, T extends ArgumentTypeInfo.Template<A>, I extends ArgumentTypeInfo<A, T>> I registerArgumentTypeInfo(Class<A> klass, I info) {
-        ArgumentTypeInfosAccessor.classMap().put(klass, info);
-        return info;
-    }
+    // @Override
+    // public <C extends AbstractContainerMenu, T extends ContainerData> MenuType<C> createMenuType(Function<FriendlyByteBuf, T> reader, ContainerData.Factory<C, T> factory) {
+    //     return new ExtendedScreenHandlerType<>((id, player, data) -> factory.create(id, player, reader.apply(data)));
+    // }
 
-    @Override
-    public <C extends AbstractContainerMenu, T extends ContainerData> MenuType<C> createMenuType(Function<FriendlyByteBuf, T> reader, ContainerData.Factory<C, T> factory) {
-        return new ExtendedScreenHandlerType<>((id, player, data) -> factory.create(id, player, reader.apply(data)));
-    }
-
-    @Override
-    public void openMenu(Player player, MenuProvider owner, ContainerData menu) {
-        player.openMenu(new WrappedMenuProvider(owner, menu));
-    }
+    // @Override
+    // public void openMenu(Player player, MenuProvider owner, ContainerData menu) {
+    //     player.openMenu(new WrappedMenuProvider(owner, menu));
+    // }
 
     @Override
     public <T extends NetworkMessage<?>> MessageType<T> createMessageType(int id, ResourceLocation channel, Class<T> klass, FriendlyByteBuf.Reader<T> reader) {
@@ -184,76 +166,6 @@ public class PlatformHelperImpl implements PlatformHelper {
         var buf = PacketByteBufs.create();
         message.write(buf);
         return ServerPlayNetworking.createS2CPacket(FabricMessageType.toFabricType(message.type()).getId(), buf);
-    }
-
-    @Override
-    public ComponentAccess<IPeripheral> createPeripheralAccess(BlockEntity owner, Consumer<Direction> invalidate) {
-        return new PeripheralAccessImpl(owner, invalidate);
-    }
-
-    @Override
-    public ComponentAccess<WiredElement> createWiredElementAccess(BlockEntity owner, Consumer<Direction> invalidate) {
-        return new ComponentAccessImpl<>(owner, WiredElementLookup.get());
-    }
-
-    @Override
-    public boolean hasWiredElementIn(Level level, BlockPos pos, Direction direction) {
-        return WiredElementLookup.get().find(level, pos.relative(direction), direction.getOpposite()) != null;
-    }
-
-    @Override
-    public ContainerTransfer.Slotted wrapContainer(Container container) {
-        return FabricContainerTransfer.of(InventoryStorage.of(container, null));
-    }
-
-    @Override
-    @SuppressWarnings({ "UnstableApiUsage", "NullAway" }) // FIXME: SIDED is treated as nullable by NullAway
-    public @Nullable ContainerTransfer getContainer(ServerLevel level, BlockPos pos, Direction side) {
-        var storage = ItemStorage.SIDED.find(level, pos, side);
-        if (storage != null) return FabricContainerTransfer.of(storage);
-
-        var entity = InventoryUtil.getEntityContainer(level, pos, side);
-        return entity == null ? null : FabricContainerTransfer.of(InventoryStorage.of(entity, side));
-    }
-
-    @Override
-    public RecipeIngredients getRecipeIngredients() {
-        return new RecipeIngredients(
-            Ingredient.of(ConventionalItemTags.REDSTONE_DUSTS),
-            Ingredient.of(Items.STRING),
-            Ingredient.of(Items.LEATHER),
-            Ingredient.of(Items.STONE),
-            Ingredient.of(ConventionalItemTags.GLASS_PANES),
-            Ingredient.of(ConventionalItemTags.GOLD_INGOTS),
-            Ingredient.of(Items.GOLD_BLOCK),
-            Ingredient.of(ConventionalItemTags.IRON_INGOTS),
-            Ingredient.of(MoreConventionalTags.SKULLS),
-            Ingredient.of(ConventionalItemTags.DYES),
-            Ingredient.of(Items.ENDER_PEARL),
-            Ingredient.of(MoreConventionalTags.WOODEN_CHESTS)
-        );
-    }
-
-    @Override
-    public List<TagKey<Item>> getDyeTags() {
-        return List.of(
-            ConventionalItemTags.WHITE_DYES,
-            ConventionalItemTags.ORANGE_DYES,
-            ConventionalItemTags.MAGENTA_DYES,
-            ConventionalItemTags.LIGHT_BLUE_DYES,
-            ConventionalItemTags.YELLOW_DYES,
-            ConventionalItemTags.LIME_DYES,
-            ConventionalItemTags.PINK_DYES,
-            ConventionalItemTags.GRAY_DYES,
-            ConventionalItemTags.LIGHT_GRAY_DYES,
-            ConventionalItemTags.CYAN_DYES,
-            ConventionalItemTags.PURPLE_DYES,
-            ConventionalItemTags.BLUE_DYES,
-            ConventionalItemTags.BROWN_DYES,
-            ConventionalItemTags.GREEN_DYES,
-            ConventionalItemTags.RED_DYES,
-            ConventionalItemTags.BLACK_DYES
-        );
     }
 
     @Override
@@ -420,68 +332,21 @@ public class PlatformHelperImpl implements PlatformHelper {
         }
     }
 
-    private record WrappedMenuProvider(MenuProvider owner, ContainerData menu) implements ExtendedScreenHandlerFactory {
-        @Nullable
-        @Override
-        public AbstractContainerMenu createMenu(int id, Inventory inventory, Player player) {
-            return owner.createMenu(id, inventory, player);
-        }
+    // private record WrappedMenuProvider(MenuProvider owner, ContainerData menu) implements ExtendedScreenHandlerFactory {
+    //     @Nullable
+    //     @Override
+    //     public AbstractContainerMenu createMenu(int id, Inventory inventory, Player player) {
+    //         return owner.createMenu(id, inventory, player);
+    //     }
 
-        @Override
-        public Component getDisplayName() {
-            return owner.getDisplayName();
-        }
+    //     @Override
+    //     public Component getDisplayName() {
+    //         return owner.getDisplayName();
+    //     }
 
-        @Override
-        public void writeScreenOpeningData(ServerPlayer player, FriendlyByteBuf buf) {
-            menu.toBytes(buf);
-        }
-    }
-
-    private static class ComponentAccessImpl<T> implements ComponentAccess<T> {
-        private final BlockEntity owner;
-        private final BlockApiLookup<T, Direction> lookup;
-        @SuppressWarnings({ "unchecked", "rawtypes" })
-        final BlockApiCache<T, Direction>[] caches = new BlockApiCache[6];
-
-        private ComponentAccessImpl(BlockEntity owner, BlockApiLookup<T, Direction> lookup) {
-            this.owner = owner;
-            this.lookup = lookup;
-        }
-
-        @Nullable
-        @Override
-        public T get(Direction direction) {
-            var cache = caches[direction.ordinal()];
-            if (cache == null) {
-                cache = caches[direction.ordinal()] = BlockApiCache.create(lookup, getLevel(), owner.getBlockPos().relative(direction));
-            }
-
-            return cache.find(direction.getOpposite());
-        }
-
-        private ServerLevel getLevel() {
-            return Objects.requireNonNull((ServerLevel) owner.getLevel(), "Block entity is not in a level");
-        }
-    }
-
-    private static final class PeripheralAccessImpl extends ComponentAccessImpl<IPeripheral> {
-        private final Runnable[] invalidators = new Runnable[6];
-
-        private PeripheralAccessImpl(BlockEntity owner, Consumer<Direction> invalidate) {
-            super(owner, PeripheralLookup.get());
-            for (var dir : Direction.values()) invalidators[dir.ordinal()] = () -> invalidate.accept(dir);
-        }
-
-        @Nullable
-        @Override
-        public IPeripheral get(Direction direction) {
-            var result = super.get(direction);
-            if (result != null) return result;
-
-            var cache = caches[direction.ordinal()];
-            var invalidate = invalidators[direction.ordinal()];
-            return Peripherals.getGenericPeripheral(cache.getWorld(), cache.getPos(), direction.getOpposite(), cache.getBlockEntity(), invalidate);
-        }
-    }
+    //     @Override
+    //     public void writeScreenOpeningData(ServerPlayer player, FriendlyByteBuf buf) {
+    //         menu.toBytes(buf);
+    //     }
+    // }
 }

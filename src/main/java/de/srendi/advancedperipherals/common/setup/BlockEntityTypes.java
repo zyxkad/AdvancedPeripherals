@@ -1,6 +1,8 @@
 package de.srendi.advancedperipherals.common.setup;
 
 import com.google.common.collect.Sets;
+import dan200.computercraft.api.peripheral.PeripheralLookup;
+import de.srendi.advancedperipherals.common.blocks.base.PeripheralBlockEntity;
 import de.srendi.advancedperipherals.common.blocks.blockentities.*;
 import de.srendi.advancedperipherals.shared.platform.RegistryEntry;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -20,6 +22,25 @@ public class BlockEntityTypes {
     public static final RegistryEntry<BlockEntityType<NBTStorageEntity>> NBT_STORAGE = Registration.TILE_ENTITIES.register("nbt_storage", () -> new BlockEntityType<>(NBTStorageEntity::new, Sets.newHashSet(Blocks.NBT_STORAGE.get()), null));
 
     public static void register() {
+        registerPeripheral(CHAT_BOX);
+        registerPeripheral(ENVIRONMENT_DETECTOR);
+        registerPeripheral(PLAYER_DETECTOR);
+        registerPeripheral(ME_BRIDGE);
+        registerPeripheral(RS_BRIDGE);
+        registerPeripheral(ENERGY_DETECTOR);
+        registerPeripheral(INVENTORY_MANAGER);
+        registerPeripheral(REDSTONE_INTEGRATOR);
+        registerPeripheral(BLOCK_READER);
+        registerPeripheral(GEO_SCANNER);
+        registerPeripheral(COLONY_INTEGRATOR);
+        registerPeripheral(NBT_STORAGE);
+    }
+
+    public static boolean registerPeripheral(RegistryEntry<BlockEntityType<? extends PeripheralBlockEntity>> entry) {
+        if (entry == null) {
+            return;
+        }
+        PeripheralLookup.get().registerForBlockEntity((b, d) -> b.createPeripheral(), entry.get());
     }
 
     public static boolean isModLoaded(String modid) {

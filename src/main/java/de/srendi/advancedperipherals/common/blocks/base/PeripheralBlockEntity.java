@@ -2,7 +2,6 @@ package de.srendi.advancedperipherals.common.blocks.base;
 
 import dan200.computercraft.api.peripheral.IComputerAccess;
 import dan200.computercraft.api.peripheral.IPeripheral;
-import dan200.computercraft.shared.Capabilities;
 import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.lib.peripherals.BasePeripheral;
 import de.srendi.advancedperipherals.lib.peripherals.IPeripheralTileEntity;
@@ -21,13 +20,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.templates.FluidTank;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.wrapper.SidedInvWrapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,9 +32,9 @@ public abstract class PeripheralBlockEntity<T extends BasePeripheral<?>> extends
     protected NonNullList<ItemStack> items;
     @Nullable
     protected T peripheral = null;
-    private LazyOptional<? extends IItemHandler> handler;
-    private LazyOptional<? extends IFluidHandler> fluidHandler;
-    private LazyOptional<IPeripheral> peripheralCap;
+    // private LazyOptional<? extends IItemHandler> handler;
+    // private LazyOptional<? extends IFluidHandler> fluidHandler;
+    // private LazyOptional<IPeripheral> peripheralCap;
 
     public PeripheralBlockEntity(BlockEntityType<?> tileEntityTypeIn, BlockPos pos, BlockState state) {
         super(tileEntityTypeIn, pos, state);
@@ -54,6 +46,7 @@ public abstract class PeripheralBlockEntity<T extends BasePeripheral<?>> extends
         peripheralSettings = new CompoundTag();
     }
 
+    /*
     @NotNull
     @Override
     public <T1> LazyOptional<T1> getCapability(@NotNull Capability<T1> cap, @Nullable Direction direction) {
@@ -102,10 +95,18 @@ public abstract class PeripheralBlockEntity<T extends BasePeripheral<?>> extends
             handler.invalidate();
         if (fluidHandler != null)
             fluidHandler.invalidate();
-    }
+    }*/
 
     @NotNull
     protected abstract T createPeripheral();
+
+    @NotNull
+    public final T peripheral() {
+        if (this.peripheral == null) {
+            this.peripheral = createPeripheral();
+        }
+        return this.peripheral;
+    }
 
     public Iterable<IComputerAccess> getConnectedComputers() {
         if (peripheral == null) // just avoid some NPE in strange cases

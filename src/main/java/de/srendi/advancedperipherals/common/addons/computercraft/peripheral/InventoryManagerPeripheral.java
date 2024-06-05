@@ -65,7 +65,9 @@ public class InventoryManagerPeripheral extends BasePeripheral<BlockEntityPeriph
         Direction direction = validateSide(invDirection);
 
         BlockEntity targetEntity = owner.getLevel().getBlockEntity(owner.getPos().relative(direction));
-        IItemHandler inventoryFrom = targetEntity != null ? targetEntity.getCapability(ForgeCapabilities.ITEM_HANDLER, direction).resolve().orElse(null) : null;
+        if(!(targetEntity instanceof Container inventoryFrom)) {
+            return 0;
+        }
         Pair<IItemHandler, Integer> inventoryTo = getHandlerFromSlot(filter.getToSlot());
 
         inventoryTo.ifRightPresent(slot -> filter.toSlot = slot);
