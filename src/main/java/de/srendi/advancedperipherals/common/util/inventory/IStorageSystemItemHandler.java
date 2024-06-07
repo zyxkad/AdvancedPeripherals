@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 public interface IStorageSystemItemHandler extends Container {
 
     @NotNull
-    ItemStack insertItem(@NotNull ItemStack stack, boolean simulate);
+    int insertItem(@NotNull ItemStack stack, boolean simulate);
 
     @Override
     default void setItem(int slot, ItemStack stack) {
@@ -27,7 +27,7 @@ public interface IStorageSystemItemHandler extends Container {
     ItemStack extractItem(ItemFilter filter, int count, boolean simulate);
 
     /*
-    These 4 methods are ignored in our transferring logic. Storage Systems do not respect slots and to extract we need a filter
+     * These 4 methods are ignored in our transferring logic. Storage Systems do not respect slots and to extract we need a filter
      */
 
     @Override

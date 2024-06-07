@@ -3,6 +3,8 @@ package de.srendi.advancedperipherals.common.util.fakeplayer;
 import com.mojang.authlib.GameProfile;
 import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.util.Pair;
+import net.fabricmc.fabric.api.entity.FakePlayer;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
@@ -33,12 +35,6 @@ import net.minecraft.world.level.block.CommandBlock;
 import net.minecraft.world.level.block.StructureBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.*;
-import net.minecraftforge.common.ForgeHooks;
-import net.minecraftforge.common.ForgeMod;
-import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.event.ForgeEventFactory;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.eventbus.api.Event;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -147,11 +143,6 @@ public class APFakePlayer extends FakePlayer {
         }
     }
 
-    @Deprecated(forRemoval = true)
-    public Pair<Boolean, String> digBlock(Direction direction) {
-        return doActionWithRot(direction.toYRot() - this.getYRot(), direction == Direction.DOWN ? 90 : direction == Direction.UP ? -90 : 0, APFakePlayer::digBlock);
-    }
-
     public Pair<Boolean, String> digBlock() {
         Level world = this.level();
         HitResult hit = findHit(true, false);
@@ -219,11 +210,15 @@ public class APFakePlayer extends FakePlayer {
         return use(false, true, filter);
     }
 
-    public InteractionResult useOnSpecificEntity(@NotNull Entity entity, HitResult result) {
+    public InteractionResult useOnSpecificEntity(@NotNull Entity entity, EntityHitResult result) {
+        InteractionResult actionResult = UseEntityCallback.interact(this, this.level(), InteractionHand.MAIN_HAND, entity, result);
+        if (!actionResult.consumesAction()) {
+            return actionResult;
+        }
+
         InteractionResult simpleInteraction = interactOn(entity, InteractionHand.MAIN_HAND);
-        if (simpleInteraction == InteractionResult.SUCCESS) return simpleInteraction;
-        if (ForgeHooks.onInteractEntityAt(this, entity, result.getLocation(), InteractionHand.MAIN_HAND) != null) {
-            return InteractionResult.FAIL;
+        if (simpleInteraction == InteractionResult.SUCCESS) {
+            return simpleInteraction;
         }
 
         return entity.interactAt(this, result.getLocation(), InteractionHand.MAIN_HAND);
@@ -239,23 +234,20 @@ public class APFakePlayer extends FakePlayer {
         if (hit instanceof BlockHitResult blockHit) {
             ItemStack stack = getMainHandItem();
             BlockPos pos = blockHit.getBlockPos();
-            PlayerInteractEvent.RightClickBlock event = ForgeHooks.onRightClickBlock(this, InteractionHand.MAIN_HAND, pos, blockHit);
-            if (event.isCanceled()) {
-                return event.getCancellationResult();
+            InteractionResult actionResult = UseBlockCallback.interact(this, this.level(), InteractionHand.MAIN_HAND, blockHit);
+            if (!actionResult.consumesAction()) {
+                return actionResult;
             }
-            boolean denied = event.getUseItem() == Event.Result.DENY;
-            if (!denied) {
-                InteractionResult result = stack.onItemUseFirst(new UseOnContext(this.level(), this, InteractionHand.MAIN_HAND, stack, blockHit));
-                if (result != InteractionResult.PASS) {
-                    return result;
-                }
+            InteractionResult result = stack.onItemUseFirst(new UseOnContext(this.level(), this, InteractionHand.MAIN_HAND, stack, blockHit));
+            if (result != InteractionResult.PASS) {
+                return result;
+            }
 
-                boolean bypass = getMainHandItem().doesSneakBypassUse(this.level(), pos, this);
-                if (isShiftKeyDown() || bypass || event.getUseBlock() == Event.Result.ALLOW) {
-                    InteractionResult useType = gameMode.useItemOn(this, this.level(), stack, InteractionHand.MAIN_HAND, blockHit);
-                    if (useType == InteractionResult.SUCCESS) {
-                        return InteractionResult.SUCCESS;
-                    }
+            boolean bypass = getMainHandItem().doesSneakBypassUse(this.level(), pos, this);
+            if (isShiftKeyDown() || bypass || event.getUseBlock() == Event.Result.ALLOW) {
+                InteractionResult useType = gameMode.useItemOn(this, this.level(), stack, InteractionHand.MAIN_HAND, blockHit);
+                if (useType == InteractionResult.SUCCESS) {
+                    return InteractionResult.SUCCESS;
                 }
             }
 
@@ -277,9 +269,9 @@ public class APFakePlayer extends FakePlayer {
 
             ItemStack copyBeforeUse = stack.copy();
             InteractionResult result = stack.useOn(new UseOnContext(this.level(), this, InteractionHand.MAIN_HAND, copyBeforeUse, blockHit));
-            if (stack.isEmpty()) {
-                ForgeEventFactory.onPlayerDestroyItem(this, copyBeforeUse, InteractionHand.MAIN_HAND);
-            }
+            // if (stack.isEmpty()) {
+            //     ForgeEventFactory.onPlayerDestroyItem(this, copyBeforeUse, InteractionHand.MAIN_HAND);
+            // }
             return result;
         } else if (hit instanceof EntityHitResult entityHit) {
             return useOnSpecificEntity(entityHit.getEntity(), entityHit);
@@ -293,11 +285,7 @@ public class APFakePlayer extends FakePlayer {
 
     @NotNull
     public HitResult findHit(boolean skipEntity, boolean skipBlock, @Nullable Predicate<Entity> entityFilter) {
-        AttributeInstance reachAttribute = getAttribute(ForgeMod.BLOCK_REACH.get());
-        if (reachAttribute == null)
-            throw new IllegalArgumentException("How did this happened?");
-
-        double range = reachAttribute.getValue();
+        double range = 4.5; // TODO: put the value in config
         Vec3 origin = new Vec3(getX(), getY(), getZ());
         Vec3 look = getLookAngle();
         Vec3 target = new Vec3(origin.x + look.x * range, origin.y + look.y * range, origin.z + look.z * range);

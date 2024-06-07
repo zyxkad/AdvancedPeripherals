@@ -3,6 +3,7 @@ package de.srendi.advancedperipherals.common.container.base;
 import de.srendi.advancedperipherals.common.blocks.base.PeripheralBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -10,21 +11,19 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.SlotItemHandler;
-import net.minecraftforge.items.wrapper.InvWrapper;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class BaseContainer extends AbstractContainerMenu {
 
-    private final IItemHandler inventory;
+    private final Inventory inventory;
     protected PeripheralBlockEntity<?> tileEntity;
 
     protected BaseContainer(@Nullable MenuType<?> type, int id, Inventory inventory, BlockPos pos, Level world) {
         super(type, id);
-        this.inventory = new InvWrapper(inventory);
-        if (world != null)
+        this.inventory = inventory;
+        if (world != null) {
             this.tileEntity = (PeripheralBlockEntity<?>) world.getBlockEntity(pos);
+        }
     }
 
     @Override
@@ -58,16 +57,16 @@ public abstract class BaseContainer extends AbstractContainerMenu {
     }
 
 
-    private int addSlotRange(IItemHandler handler, int index, int x, int y, int amount, int dx) {
+    private int addSlotRange(Container handler, int index, int x, int y, int amount, int dx) {
         for (int i = 0; i < amount; i++) {
-            addSlot(new SlotItemHandler(handler, index, x, y));
+            addSlot(new Slot(handler, index, x, y));
             x += dx;
             index++;
         }
         return index;
     }
 
-    private int addSlotBox(IItemHandler handler, int index, int x, int y, int horAmount, int dx, int verAmount, int dy) {
+    private int addSlotBox(Container handler, int index, int x, int y, int horAmount, int dx, int verAmount, int dy) {
         for (int i = 0; i < verAmount; i++) {
             index = addSlotRange(handler, index, x, y, horAmount, dx);
             y += dy;

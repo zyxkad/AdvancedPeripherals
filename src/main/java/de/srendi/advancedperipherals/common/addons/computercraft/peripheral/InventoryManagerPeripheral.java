@@ -13,18 +13,14 @@ import de.srendi.advancedperipherals.common.util.inventory.InventoryUtil;
 import de.srendi.advancedperipherals.common.util.inventory.ItemFilter;
 import de.srendi.advancedperipherals.lib.peripherals.BasePeripheral;
 import net.minecraft.core.Direction;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.wrapper.PlayerArmorInvWrapper;
-import net.minecraftforge.items.wrapper.PlayerInvWrapper;
-import net.minecraftforge.items.wrapper.PlayerOffhandInvWrapper;
-import org.jetbrains.annotations.NotNull;
 
+import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +64,7 @@ public class InventoryManagerPeripheral extends BasePeripheral<BlockEntityPeriph
         if(!(targetEntity instanceof Container inventoryFrom)) {
             return 0;
         }
-        Pair<IItemHandler, Integer> inventoryTo = getHandlerFromSlot(filter.getToSlot());
+        Pair<Container, Integer> inventoryTo = getHandlerFromSlot(filter.getToSlot());
 
         inventoryTo.ifRightPresent(slot -> filter.toSlot = slot);
 
@@ -81,8 +77,9 @@ public class InventoryManagerPeripheral extends BasePeripheral<BlockEntityPeriph
     @LuaFunction(mainThread = true)
     public final MethodResult removeItemFromPlayer(String invDirection, Map<?, ?> item) throws LuaException {
         Pair<ItemFilter, String> filter = ItemFilter.parse(item);
-        if (filter.rightPresent())
-            return MethodResult.of(0, filter.getRight());
+        if (filter.rightPresent()) {
+            return MethodResult.of(null, filter.getRight());
+        }
 
         return removeItemCommon(invDirection, filter.getLeft());
     }
@@ -91,11 +88,11 @@ public class InventoryManagerPeripheral extends BasePeripheral<BlockEntityPeriph
         Direction direction = validateSide(invDirection);
 
         BlockEntity targetEntity = owner.getLevel().getBlockEntity(owner.getPos().relative(direction));
-        Pair<IItemHandler, Integer> inventoryFrom = getHandlerFromSlot(filter.getFromSlot());
-        IItemHandler inventoryTo = targetEntity != null ? targetEntity.getCapability(ForgeCapabilities.ITEM_HANDLER, direction).resolve().orElse(null) : null;
+        Pair<Container, Integer> inventoryFrom = getHandlerFromSlot(filter.getFromSlot());
 
-        if (inventoryTo == null)
-            return MethodResult.of(0, "INVENTORY_TO_INVALID");
+        if (!(targetEntity instanceof Container inventoryTo)) {
+            return MethodResult.of(null, "INVENTORY_TO_INVALID");
+        }
 
         inventoryFrom.ifRightPresent(slot -> filter.fromSlot = slot);
 
@@ -108,9 +105,9 @@ public class InventoryManagerPeripheral extends BasePeripheral<BlockEntityPeriph
         int i = 0; //Used to let users easily sort the items by the slots. Also, a better way for the user to see where an item actually is
         for (ItemStack stack : getOwnerPlayer().getInventory().items) {
             ItemStack copiedStack = stack.copy();
-            if (!copiedStack.isEmpty())
+            if (!copiedStack.isEmpty()) {
                 items.add(LuaConverter.stackToObjectWithSlot(copiedStack, i));
-
+            }
             i++;
         }
         return items;
@@ -121,10 +118,10 @@ public class InventoryManagerPeripheral extends BasePeripheral<BlockEntityPeriph
         Direction direction = validateSide(target);
 
         BlockEntity targetEntity = owner.getLevel().getBlockEntity(owner.getPos().relative(direction));
-        IItemHandler inventoryTo = targetEntity != null ? targetEntity.getCapability(ForgeCapabilities.ITEM_HANDLER, direction).resolve().orElse(null) : null;
 
-        if (inventoryTo == null)
+        if (!(targetEntity instanceof Container inventoryTo)) {
             return MethodResult.of(null, "INVENTORY_TO_INVALID");
+        }
 
         List<Object> items = new ArrayList<>();
         for (int slot = 0; slot < inventoryTo.getSlots(); slot++) {
@@ -206,21 +203,21 @@ public class InventoryManagerPeripheral extends BasePeripheral<BlockEntityPeriph
     }
 
     @NotNull
-    private Pair<IItemHandler, Integer> getHandlerFromSlot(int slot) throws LuaException {
-        IItemHandler handler;
-        if (slot >= 100 && slot <= 103) {
-            handler = new PlayerArmorInvWrapper(getOwnerPlayer().getInventory());
-            // If the slot is between 100 and 103, change the index to a normal index between 0 and 3.
-            // This is necessary since the PlayerArmorInvWrapper does not work with these higher indexes
-            slot = slot - 100;
-        } else if (slot == 36) {
-            handler = new PlayerOffhandInvWrapper(getOwnerPlayer().getInventory());
-            // Set the "from slot" to zero so the offhand wrapper can work with that
-            slot = 0;
-        } else {
-            handler = new PlayerInvWrapper(getOwnerPlayer().getInventory());
-        }
-        return Pair.of(handler, slot);
+    private Pair<Container, Integer> getHandlerFromSlot(int slot) throws LuaException {
+        // IItemHandler handler;
+        // if (slot >= 100 && slot <= 103) {
+        //     handler = new PlayerArmorInvWrapper(getOwnerPlayer().getInventory());
+        //     // If the slot is between 100 and 103, change the index to a normal index between 0 and 3.
+        //     // This is necessary since the PlayerArmorInvWrapper does not work with these higher indexes
+        //     slot = slot - 100;
+        // } else if (slot == 36) {
+        //     handler = new PlayerOffhandInvWrapper(getOwnerPlayer().getInventory());
+        //     // Set the "from slot" to zero so the offhand wrapper can work with that
+        //     slot = 0;
+        // } else {
+        //     handler = new PlayerInvWrapper(getOwnerPlayer().getInventory());
+        // }
+        return Pair.of(getOwnerPlayer().getInventory(), slot);
     }
 
     /**

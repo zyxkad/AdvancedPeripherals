@@ -25,94 +25,150 @@ public class InventoryUtil {
     }
 
     public static Container extractHandler(@Nullable Object object) {
-        if (object instanceof Container itemHandler)
+        if (object instanceof Container itemHandler) {
             return itemHandler;
+        }
         return null;
     }
 
-    // TODO: need refactor
-    public static int moveItem(Container inventoryFrom, Container inventoryTo, ItemFilter filter) {
-        if (inventoryFrom == null) return 0;
+    public static int moveItem(Container invFrom, Container invTo, ItemFilter filter) {
+        if (invFrom == null || invTo == null) {
+            return 0;
+        }
 
         int fromSlot = filter.getFromSlot();
         int toSlot = filter.getToSlot();
 
-        int amount = filter.getCount();
+        int requireAmount = filter.getCount();
         int transferableAmount = 0;
 
-        // The logic changes with storage systems since these systems do not have slots
-        if (inventoryFrom instanceof IStorageSystemItemHandler storageSystemHandler) {
-            ItemStack extracted = storageSystemHandler.extractItem(filter, filter.getCount(), true);
-            if (extracted.isEmpty()) {
-                continue;
+        if (invFrom instanceof IStorageSystemItemHandler storageFrom) {
+            if (invTo instanceof IStorageSystemItemHandler storageTo) {
+                return moveItemStorage2Storage(storageFrom, storageTo, filter);
             }
-            if (toSlot == -1) {
-                insertItem(inventoryTo, extracted);
-            } else {
-                insertItem(inventoryTo, extracted, toSlot);
-            }
-            amount -= extracted.getCount();
-            transferableAmount += storageSystemHandler.extractItem(filter, extracted.getCount(), false).getCount();
-            if (transferableAmount >= filter.getCount()) {
-                break;
-            }
-            return transferableAmount;
+            return moveItemStorage2Container(storageFrom, invTo, filter);
         }
 
-        if (inventoryTo instanceof IStorageSystemItemHandler storageSystemHandler) {
-            for (int i = fromSlot == -1 ? 0 : fromSlot; i < (fromSlot == -1 ? inventoryFrom.getSlots() : fromSlot + 1); i++) {
+        if (fromSlot != -1) {
+            if (!filter.test(invFrom.getItem(fromSlot))) {
+                return;
+            }
+        }
+
+        if (invTo instanceof IStorageSystemItemHandler storageTo) {
+            if (fromSlot != -1) {
+                return moveItemContainer2Storage(invFrom, storageTo, requireAmount, fromSlot);
+            }
+            for (int i = 0; i < invFrom.getContainerSize(); i++) {
                 if (filter.test(inventoryFrom.getStackInSlot(i))) {
-                    ItemStack extracted = inventoryFrom.extractItem(i, amount - transferableAmount, true);
-                    if (extracted.isEmpty()) {
-                        continue;
-                    }
-                    int inserted = insertItem(storageSystemHandler, extracted, toSlot);
-                    amount -= extracted.getCount();
-                    transferableAmount += inventoryFrom.extractItem(i, inserted, false).getCount();
-                    if (transferableAmount >= filter.getCount()) {
-                        break;
-                    }
+                    transferableAmount += moveItemContainer2Storage(invFrom, storageTo, requireAmount - transferableAmount, i);
                 }
             }
             return transferableAmount;
         }
 
-        for (int i = fromSlot == -1 ? 0 : fromSlot; i < (fromSlot == -1 ? inventoryFrom.getSlots() : fromSlot + 1); i++) {
-            if (filter.test(inventoryFrom.getStackInSlot(i))) {
-                ItemStack extracted = inventoryFrom.extractItem(i, amount - transferableAmount, true);
-                if (extracted.isEmpty()) {
-                    continue;
-                }
-                int inserted;
-                if (toSlot == -1) {
-                    inserted = insertItem(inventoryTo, extracted);
-                } else {
-                    inserted = insertItem(inventoryTo, extracted, toSlot);
-                }
-                amount -= extracted.getCount();
-                transferableAmount += inventoryFrom.extractItem(i, inserted, false).getCount();
-                if (transferableAmount >= filter.getCount()) {
-                    break;
-                }
+        if (fromSlot != -1) {
+            return moveItemContainer2Container(invFrom, invTo, requireAmount, fromSlot, toSlot);
+        }
+        for (int i = 0; i < invFrom.getContainerSize(); i++) {
+            if (filter.test(invFrom.getItem(i))) {
+                transferableAmount += moveItemContainer2Container(invFrom, invTo, requireAmount - transferableAmount, i, toSlot);
             }
         }
         return transferableAmount;
     }
 
-    private static int insertItem(Container inv, ItemStack stack) {
+    private static int moveItemStorage2Storage(IStorageSystemItemHandler invFrom, IStorageSystemItemHandler invTo, ItemFilter filter) {
+        int requireAmount = filter.getCount();
+        int transferableAmount = 0;
+        while (requireAmount > transferableAmount) {
+            ItemStack extracted = invFrom.extractItem(filter, requireAmount - transferableAmount, true);
+            if (extracted.isEmpty()) {
+                break;
+            }
+            ItemFilter extractedFilter = ItemFilter.fromStack(extracted);
+            int inserted = invTo.insertItem(extracted, false);
+            int transfered = invFrom.extractItem(extractedFilter, inserted, false).getCount();
+            transferableAmount += transfered;
+            if (transfered < inserted) {
+                // should Technically not happen?
+                invTo.extractItem(extractedFilter, inserted - transfered, false);
+            }
+        }
+        return transferableAmount;
+    }
+
+    private static int moveItemStorage2Container(IStorageSystemItemHandler invFrom, Container invTo, ItemFilter filter) {
+        int toSlot = filter.getToSlot();
+        int requireAmount = filter.getCount();
+        int transferableAmount = 0;
+        while (requireAmount > transferableAmount) {
+            ItemStack extracted = invFrom.extractItem(filter, requireAmount - transferableAmount, true);
+            if (extracted.isEmpty()) {
+                break;
+            }
+            ItemFilter extractedFilter = ItemFilter.fromStack(extracted);
+            int inserted;
+            if (toSlot == -1) {
+                inserted = insertItem(invTo, extracted, false);
+            } else {
+                inserted = insertItem(invTo, extracted, toSlot, false);
+            }
+            if (inserted == 0) {
+                break;
+            }
+            int transfered = invFrom.extractItem(extractedFilter, inserted, false).getCount();
+            transferableAmount += transfered;
+            if (transfered < inserted) {
+                // should Technically not happen?
+                invTo.extractItem(extractedFilter, inserted - transfered, false);
+            }
+        }
+        return transferableAmount;
+    }
+
+    private static int moveItemContainer2Storage(Container invFrom, IStorageSystemItemHandler invTo, int requireAmount, int fromSlot) {
+        ItemStack extracted = invFrom.getItem(fromSlot);
+        if (extracted.isEmpty()) {
+            return 0;
+        }
+        int transfered = invTo.insertItem(extracted.copyWithCount(Math.min(requireAmount, extracted.getCount())), false);
+        extracted.shrink(transfered);
+        return transfered;
+    }
+
+    private static int moveItemContainer2Container(Container invFrom, Container invTo, int requireAmount, int fromSlot, int toSlot) {
+        ItemStack extracted = invFrom.getItem(fromSlot);
+        if (extracted.isEmpty()) {
+            return 0;
+        }
+        ItemStack inserting = extracted.copyWithCount(Math.min(requireAmount, extracted.getCount()));
+        int inserted;
+        if (toSlot == -1) {
+            inserted = insertItem(inventoryTo, inserting, false);
+        } else {
+            inserted = insertItem(inventoryTo, inserting, toSlot, false);
+        }
+        extracted.shrink(inserted);
+        return inserted;
+    }
+
+    private static int insertItem(Container inv, ItemStack stack, boolean simulate) {
         int transfered = 0;
         for (int slot = 0; slot < inv.getContainerSize() && stack.getCount() > 0; slot++) {
-            transfered += insertItem(inv, stack, slot);
+            transfered += insertItem(inv, stack, slot, simulate);
         }
         return transfered;
     }
 
-    private static int insertItem(Container inv, ItemStack stack, int slot) {
+    private static int insertItem(Container inv, ItemStack stack, int slot, boolean simulate) {
         ItemStack i = inv.getItem(slot);
         if (i == ItemStack.EMPTY || i.getItem() == stack.getItem()) {
             int count = Math.min(stack.getCount(), stack.getMaxStackSize() - i.getCount());
-            inv.setItem(slot, stack.copyWithCount(count));
-            stack.shrink(count);
+            if (!simulate) {
+                inv.setItem(slot, stack.copyWithCount(i.getCount() + count));
+                stack.shrink(count);
+            }
             return count;
         }
         return 0;
@@ -157,8 +213,9 @@ public class InventoryUtil {
     @Nullable
     public static Container getHandlerFromName(@NotNull IComputerAccess access, String name) throws LuaException {
         IPeripheral location = access.getAvailablePeripheral(name);
-        if (location == null)
+        if (location == null) {
             return null;
+        }
 
         return extractHandler(location.getTarget());
     }
@@ -169,8 +226,9 @@ public class InventoryUtil {
         Objects.requireNonNull(level);
         Direction relativeDirection = CoordUtil.getDirection(owner.getOrientation(), direction);
         BlockEntity target = level.getBlockEntity(owner.getPos().relative(relativeDirection));
-        if (target == null)
+        if (target == null) {
             return null;
+        }
 
         return extractHandler(target);
     }

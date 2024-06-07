@@ -1,16 +1,15 @@
 package de.srendi.advancedperipherals.common.container.base;
 
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.SlotItemHandler;
+import net.minecraft.world.inventory.Slot;
 import org.jetbrains.annotations.NotNull;
 
-public class SlotInputHandler extends SlotItemHandler {
+public class SlotInputHandler extends Slot {
 
     SlotCondition condition;
 
-    public SlotInputHandler(IItemHandler itemHandler, int index, int xPosition, int yPosition, SlotCondition condition) {
-        super(itemHandler, index, xPosition, yPosition);
+    public SlotInputHandler(Container container, int index, int xPosition, int yPosition, SlotCondition condition) {
+        super(container, index, xPosition, yPosition);
         this.condition = condition;
     }
 

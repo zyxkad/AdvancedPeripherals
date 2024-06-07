@@ -3,6 +3,7 @@ package de.srendi.advancedperipherals.common.util.inventory;
 import dan200.computercraft.shared.ModRegistry;
 import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.util.StringUtil;
+import de.srendi.advancedperipherals.shared.platform.RegistryWrappers;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
@@ -30,20 +31,15 @@ public class ItemUtil {
     private ItemUtil() {
     }
 
-    public static <T> T getRegistryEntry(String name, IForgeRegistry<T> forgeRegistry) {
+    public static <T> T getRegistryEntry(String name, RegistryWrappers.RegistryWrapper<T> registry) {
         ResourceLocation location;
         try {
             location = new ResourceLocation(name);
         } catch (ResourceLocationException ex) {
-            location = null;
-        }
-
-        T value;
-        if (location != null && forgeRegistry.containsKey(location) && (value = forgeRegistry.getValue(location)) != null) {
-            return value;
-        } else {
             return null;
         }
+
+        return registry.tryGet(location);
     }
 
     /**
