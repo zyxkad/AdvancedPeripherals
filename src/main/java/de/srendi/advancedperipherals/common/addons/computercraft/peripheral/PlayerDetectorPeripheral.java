@@ -7,6 +7,7 @@ import dan200.computercraft.api.lua.MethodResult;
 import dan200.computercraft.api.pocket.IPocketAccess;
 import dan200.computercraft.api.turtle.ITurtleAccess;
 import dan200.computercraft.api.turtle.TurtleSide;
+import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.addons.computercraft.owner.BlockEntityPeripheralOwner;
 import de.srendi.advancedperipherals.common.addons.computercraft.owner.IPeripheralOwner;
 import de.srendi.advancedperipherals.common.addons.computercraft.owner.PocketPeripheralOwner;
@@ -56,7 +57,7 @@ public class PlayerDetectorPeripheral extends BasePeripheral<IPeripheralOwner> {
 
     @LuaFunction(mainThread = true)
     public final String[] getOnlinePlayers() {
-        return ServerLifecycleHooks.getCurrentServer().getPlayerNames();
+        return AdvancedPeripherals.getServer().getPlayerNames();
     }
 
     @LuaFunction(mainThread = true)
@@ -272,6 +273,6 @@ public class PlayerDetectorPeripheral extends BasePeripheral<IPeripheralOwner> {
     }
 
     private List<ServerPlayer> getPlayers() {
-        return ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers();
+        return AdvancedPeripherals.getServer().getPlayerList().getPlayers();
     }
 }

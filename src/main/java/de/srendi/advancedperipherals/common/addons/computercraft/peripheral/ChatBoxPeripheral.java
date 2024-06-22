@@ -28,7 +28,6 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
@@ -91,9 +90,10 @@ public class ChatBoxPeripheral extends BasePeripheral<IPeripheralOwner> {
      * @return a player if the name/uuid belongs to a player
      */
     private ServerPlayer getPlayer(String argument) {
-        if (argument.matches("\\b[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}\\b"))
-            return ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayer(UUID.fromString(argument));
-        return ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayerByName(argument);
+        if (argument.matches("\\b[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}\\b")) {
+            return AdvancedPeripherals.getServer().getPlayerList().getPlayer(UUID.fromString(argument));
+        }
+        return AdvancedPeripherals.getServer().getPlayerList().getPlayerByName(argument);
     }
 
     /**
@@ -125,7 +125,7 @@ public class ChatBoxPeripheral extends BasePeripheral<IPeripheralOwner> {
                     arguments.optString(2, "[]"),
                     StringUtil.convertAndToSectionMark(arguments.optString(3, ""))
             ).append(component);
-            for (ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) {
+            for (ServerPlayer player : AdvancedPeripherals.getServer().getPlayerList().getPlayers()) {
                 if (!APConfig.PERIPHERALS_CONFIG.chatBoxMultiDimensional.get() && player.level().dimension() != dimension)
                     continue;
                 if (CoordUtil.isInRange(getPos(), getLevel(), player, range, maxRange))
@@ -150,7 +150,7 @@ public class ChatBoxPeripheral extends BasePeripheral<IPeripheralOwner> {
                     arguments.optString(2, "[]"),
                     StringUtil.convertAndToSectionMark(arguments.optString(3, ""))
             ).append(message);
-            for (ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) {
+            for (ServerPlayer player : AdvancedPeripherals.getServer().getPlayerList().getPlayers()) {
                 if (!APConfig.PERIPHERALS_CONFIG.chatBoxMultiDimensional.get() && player.level().dimension() != dimension)
                     continue;
                 if (CoordUtil.isInRange(getPos(), getLevel(), player, range, maxRange))

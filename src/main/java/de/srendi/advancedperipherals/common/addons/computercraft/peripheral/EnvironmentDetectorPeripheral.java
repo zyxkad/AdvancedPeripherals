@@ -8,6 +8,7 @@ import dan200.computercraft.api.peripheral.IComputerAccess;
 import dan200.computercraft.api.pocket.IPocketAccess;
 import dan200.computercraft.api.turtle.ITurtleAccess;
 import dan200.computercraft.api.turtle.TurtleSide;
+import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.addons.computercraft.operations.SphereOperationContext;
 import de.srendi.advancedperipherals.common.addons.computercraft.owner.BlockEntityPeripheralOwner;
 import de.srendi.advancedperipherals.common.addons.computercraft.owner.IPeripheralOwner;
@@ -18,9 +19,11 @@ import de.srendi.advancedperipherals.common.configuration.APConfig;
 import de.srendi.advancedperipherals.common.util.LuaConverter;
 import de.srendi.advancedperipherals.lib.peripherals.BasePeripheral;
 import de.srendi.advancedperipherals.lib.peripherals.IPeripheralPlugin;
+import net.fabricmc.fabric.api.entity.event.v1.EntitySleepEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -32,10 +35,6 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.WorldgenRandom;
 import net.minecraft.world.phys.AABB;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.player.SleepingTimeCheckEvent;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -140,7 +139,7 @@ public class EnvironmentDetectorPeripheral extends BasePeripheral<IPeripheralOwn
     @LuaFunction(mainThread = true)
     public final Set<String> listDimensions() {
         Set<String> dimensions = new HashSet<>();
-        ServerLifecycleHooks.getCurrentServer().getAllLevels().forEach(serverWorld -> dimensions.add(serverWorld.dimension().location().getPath()));
+        AdvancedPeripherals.getServer().getAllLevels().forEach(serverWorld -> dimensions.add(serverWorld.dimension().location().getPath()));
         return dimensions;
     }
 
@@ -218,8 +217,9 @@ public class EnvironmentDetectorPeripheral extends BasePeripheral<IPeripheralOwn
     @LuaFunction
     public final MethodResult scanCost(int radius) {
         int estimatedCost = estimateCost(radius);
-        if (estimatedCost < 0)
+        if (estimatedCost < 0) {
             return MethodResult.of(null, "Radius exceeds max value");
+        }
         return MethodResult.of(estimatedCost);
     }
 
@@ -230,21 +230,17 @@ public class EnvironmentDetectorPeripheral extends BasePeripheral<IPeripheralOwn
 
     @LuaFunction(mainThread = true)
     public final MethodResult canSleepPlayer(String playername) {
-        Player player = ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayerByName(playername);
-        if(player == null)
+        Player player = AdvancedPeripherals.getServer().getPlayerList().getPlayerByName(playername);
+        if(player == null) {
             return MethodResult.of(false, "player_not_online");
-
-        if(!player.level().dimensionType().bedWorks())
-            return MethodResult.of(false, "not_allowed_in_dimension");
-
-        SleepingTimeCheckEvent evt = new SleepingTimeCheckEvent(player, Optional.empty());
-        MinecraftForge.EVENT_BUS.post(evt);
-
-        Event.Result canContinueSleep = evt.getResult();
-        if (canContinueSleep == Event.Result.DEFAULT) {
-            return MethodResult.of(!player.level().isDay());
-        } else {
-            return MethodResult.of(canContinueSleep == Event.Result.ALLOW);
         }
+        Level level = player.level();
+        if(!level.dimensionType().bedWorks()) {
+            return MethodResult.of(false, "not_allowed_in_dimension");
+        }
+
+        InteractionResult result = EntitySleepEvents.ALLOW_SLEEP_TIME.invoker().allowSleepTime(player, player.blockPosition(), !level.isDay());
+
+        return MethodResult.of(result.consumesAction());
     }
 }

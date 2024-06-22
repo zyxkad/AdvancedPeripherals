@@ -14,7 +14,6 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.server.ServerLifecycleHooks;
 import org.apache.logging.log4j.Level;
 import org.jetbrains.annotations.NotNull;
 
@@ -62,7 +61,7 @@ public class ChunkManager extends SavedData {
             final int checkIntervalInTick = APConfig.PERIPHERALS_CONFIG.chunkLoadValidTime.get() * 20 / 10;
             if (tickCounter >= checkIntervalInTick) {
                 tickCounter = 0;
-                ChunkManager.get(ServerLifecycleHooks.getCurrentServer().overworld()).cleanup();
+                ChunkManager.get(AdvancedPeripherals.getServer().overworld()).cleanup();
             }
         }
     }
@@ -232,7 +231,7 @@ public class ChunkManager extends SavedData {
 
     private static Map<String, ServerLevel> getServerLevels() {
         Map<String, ServerLevel> levels = new HashMap<>();
-        ServerLifecycleHooks.getCurrentServer().getAllLevels().forEach(level -> {
+        AdvancedPeripherals.getServer().getAllLevels().forEach(level -> {
             String dimensionName = level.dimension().location().toString();
             levels.put(dimensionName, level);
         });
@@ -241,7 +240,7 @@ public class ChunkManager extends SavedData {
 
     private static ServerLevel getServerLevel(String name) {
         ResourceKey<net.minecraft.world.level.Level> key = ResourceKey.create(Registries.DIMENSION, new ResourceLocation(name));
-        return ServerLifecycleHooks.getCurrentServer().getLevel(key);
+        return AdvancedPeripherals.getServer().getLevel(key);
     }
 
     private static class LoadChunkRecord {

@@ -7,11 +7,11 @@ import de.srendi.advancedperipherals.common.blocks.blockentities.BlockReaderEnti
 import de.srendi.advancedperipherals.common.configuration.APConfig;
 import de.srendi.advancedperipherals.common.util.LuaConverter;
 import de.srendi.advancedperipherals.lib.peripherals.BasePeripheral;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +32,7 @@ public class BlockReaderPeripheral extends BasePeripheral<BlockEntityPeripheralO
     @LuaFunction(mainThread = true)
     public final String getBlockName() {
         if (getBlockInFront().is(Blocks.AIR)) return "none";
-        return ForgeRegistries.BLOCKS.getKey(getBlockInFront().getBlock()).toString();
+        return BuiltInRegistries.BLOCK.getKey(getBlockInFront().getBlock()).toString();
     }
 
     @LuaFunction(mainThread = true)
