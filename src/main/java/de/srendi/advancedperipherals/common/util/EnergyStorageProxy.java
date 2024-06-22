@@ -1,6 +1,7 @@
 package de.srendi.advancedperipherals.common.util;
 
 import de.srendi.advancedperipherals.common.blocks.blockentities.EnergyDetectorEntity;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import team.reborn.energy.api.EnergyStorage;
 
 import java.util.Optional;
