@@ -2,6 +2,7 @@ package de.srendi.advancedperipherals.common.setup;
 
 import com.google.common.collect.Sets;
 import dan200.computercraft.api.peripheral.PeripheralLookup;
+import de.srendi.advancedperipherals.common.blocks.base.IEnergyStorageBlock;
 import de.srendi.advancedperipherals.common.blocks.base.PeripheralBlockEntity;
 import de.srendi.advancedperipherals.common.blocks.blockentities.*;
 import de.srendi.advancedperipherals.shared.platform.RegistryEntry;
@@ -34,6 +35,9 @@ public class BlockEntityTypes {
         registerPeripheral(GEO_SCANNER);
         registerPeripheral(COLONY_INTEGRATOR);
         registerPeripheral(NBT_STORAGE);
+        registerEnergyStorage(ENVIRONMENT_DETECTOR);
+        registerEnergyStorage(ENERGY_DETECTOR);
+        registerEnergyStorage(GEO_SCANNER);
     }
 
     public static boolean registerPeripheral(RegistryEntry<BlockEntityType<? extends PeripheralBlockEntity>> entry) {
@@ -41,6 +45,13 @@ public class BlockEntityTypes {
             return;
         }
         PeripheralLookup.get().registerForBlockEntity((b, d) -> b.createPeripheral(), entry.get());
+    }
+
+    public static boolean registerEnergyStorage(RegistryEntry<BlockEntityType<? extends IEnergyStorageBlock>> entry) {
+        if (entry == null) {
+            return;
+        }
+        EnergyStorage.SIDED.registerForBlockEntity((blockEntity, direction) -> blockEntity.getEnergyStorage(direction), entry.get());
     }
 
     public static boolean isModLoaded(String modid) {

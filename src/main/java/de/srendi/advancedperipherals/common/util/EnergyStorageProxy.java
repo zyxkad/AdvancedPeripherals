@@ -1,76 +1,157 @@
 package de.srendi.advancedperipherals.common.util;
 
 import de.srendi.advancedperipherals.common.blocks.blockentities.EnergyDetectorEntity;
-import net.minecraftforge.energy.IEnergyStorage;
+import team.reborn.energy.api.EnergyStorage;
 
 import java.util.Optional;
 
-public class EnergyStorageProxy implements IEnergyStorage {
+public class EnergyStorageProxy {
 
-    private final EnergyDetectorEntity energyDetectorTE;
-    private int maxTransferRate;
-    private int transferedInThisTick = 0;
+    private final InputSide inputSide = this.new InputSide();
+    private final OutputSide outputSide = this.new OutputSide();
+    protected final EnergyDetectorEntity energyDetector;
+    private long maxTransferRate;
+    protected long transferedInTick = 0;
 
-    public EnergyStorageProxy(EnergyDetectorEntity energyDetectorTE, int maxTransferRate) {
-        this.energyDetectorTE = energyDetectorTE;
+    public EnergyStorageProxy(EnergyDetectorEntity energyDetector, long maxTransferRate) {
+        this.energyDetector = energyDetector;
         this.maxTransferRate = maxTransferRate;
     }
 
-    @Override
-    public boolean canReceive() {
-        return true;
+    public long getEnergyStored() {
+        Optional<EnergyStorage> out = energyDetector.getOutputStorage();
+        return out.isEmpty() ? out.get().getAmount() : 0;
     }
 
-    @Override
-    public int receiveEnergy(int maxReceive, boolean simulate) {
-        Optional<IEnergyStorage> out = energyDetectorTE.getOutputStorage();
-        return out.map(outStorage -> {
-            int transferred = outStorage.receiveEnergy(Math.min(maxReceive, maxTransferRate), simulate);
-            if (!simulate) {
-                transferedInThisTick += transferred;
-            }
-            return transferred;
-        }).orElse(0);
+    public long getMaxEnergyStored() {
+        Optional<EnergyStorage> out = energyDetector.getOutputStorage();
+        return out.isEmpty() ? out.get().getCapacity() : 0;
     }
 
-    @Override
-    public int getEnergyStored() {
-        Optional<IEnergyStorage> out = energyDetectorTE.getOutputStorage();
-        return out.map(IEnergyStorage::getEnergyStored).orElse(0);
-    }
-
-    @Override
-    public int getMaxEnergyStored() {
-        Optional<IEnergyStorage> out = energyDetectorTE.getOutputStorage();
-        return out.map(IEnergyStorage::getMaxEnergyStored).orElse(0);
-    }
-
-    @Override
-    public boolean canExtract() {
-        return false;
-    }
-
-    @Override
-    public int extractEnergy(int maxExtract, boolean simulate) {
-        return 0;
-    }
-
-    public int getMaxTransferRate() {
+    public long getMaxTransferRate() {
         return maxTransferRate;
     }
 
-    public void setMaxTransferRate(int rate) {
+    public void setMaxTransferRate(long rate) {
         maxTransferRate = rate;
     }
 
     /**
      * should be called on every tick
      */
-    public void resetTransferedInThisTick() {
-        transferedInThisTick = 0;
+    public void resetTransferedInTick() {
+        transferedInTick = 0;
     }
 
-    public int getTransferedInThisTick() {
-        return transferedInThisTick;
+    public int getTransferedInTick() {
+        return transferedInTick;
+    }
+
+    public EnergyStorage getInputSide() {
+        return inputSide;
+    }
+
+    public EnergyStorage getOutputSide() {
+        return outputSide;
+    }
+
+    private class InputSide implements EnergyStorage {
+        @Override
+        public boolean supportsInsertion() {
+            return true;
+        }
+
+        @Override
+        public long insert(long maxAmount, TransactionContext transaction) {
+            long amountLeft = getMaxTransferRate() - transferedInTick;
+            if (amountLeft <= 0) {
+                return 0;
+            }
+            Optional<EnergyStorage> out = energyDetector.getOutputStorage();
+            if (out.isEmpty()) {
+                return 0;
+            }
+            long transferred = out.get().insert(Math.min(maxAmount, amountLeft), transaction);
+            if (transferred == 0) {
+                return 0;
+            }
+            transferedInTick += transferred;
+            transaction.addCloseCallback((transaction, result) -> {
+                if (result == TransactionContext.Result.ABORTED) {
+                    transferedInTick -= transferred;
+                }
+            });
+            return transferred;
+        }
+
+        @Override
+        public boolean supportsExtraction() {
+            return false;
+        }
+
+        @Override
+        public long extract(long maxAmount, TransactionContext transaction) {
+            return 0;
+        }
+
+        @Override
+        public long getAmount() {
+            return getEnergyStored();
+        }
+
+        @Override
+        public long getCapacity() {
+            return getMaxEnergyStored();
+        }
+    }
+
+    private class OutputSide implements EnergyStorage {
+        @Override
+        public boolean supportsInsertion() {
+            return false;
+        }
+
+        @Override
+        public long insert(long maxAmount, TransactionContext transaction) {
+            return 0;
+        }
+
+        @Override
+        public boolean supportsExtraction() {
+            return true;
+        }
+
+        @Override
+        public long extract(long maxAmount, TransactionContext transaction) {
+            long amountLeft = getMaxTransferRate() - transferedInTick;
+            if (amountLeft <= 0) {
+                return 0;
+            }
+            Optional<EnergyStorage> in = energyDetector.getInputStorage();
+            if (in.isEmpty()) {
+                return 0;
+            }
+            long transferred = in.get().extract(Math.min(maxAmount, amountLeft), transaction);
+            if (transferred == 0) {
+                return 0;
+            }
+            transferedInTick += transferred;
+            transaction.addCloseCallback((transaction, result) -> {
+                if (result == TransactionContext.Result.ABORTED) {
+                    transferedInTick -= transferred;
+                }
+            });
+            return 0;
+        }
+
+        @Override
+        public long getAmount() {
+            return getEnergyStored();
+        }
+
+        @Override
+        public long getCapacity() {
+            return getMaxEnergyStored();
+        }
     }
 }
