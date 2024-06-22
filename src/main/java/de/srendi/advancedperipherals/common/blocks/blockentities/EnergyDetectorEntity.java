@@ -26,8 +26,8 @@ public class EnergyDetectorEntity extends PeripheralBlockEntity<EnergyDetectorPe
     private int currentTransferRate = 0;
     // storageProxy that will forward the energy to the output but limit it to maxTransferRate
     private EnergyStorageProxy storageProxy = new EnergyStorageProxy(this, APConfig.PERIPHERALS_CONFIG.energyDetectorMaxFlow.get());
-    private Direction energyInDirection = Direction.NORTH;
-    private Direction energyOutDirection = Direction.SOUTH;
+    private Direction energyInDirection;
+    private Direction energyOutDirection;
     @NotNull
     private Optional<EnergyStorage> inputSideStorage = Optional.empty();
     @NotNull
@@ -35,6 +35,8 @@ public class EnergyDetectorEntity extends PeripheralBlockEntity<EnergyDetectorPe
 
     public EnergyDetectorEntity(BlockPos pos, BlockState state) {
         super(BlockEntityTypes.ENERGY_DETECTOR.get(), pos, state);
+        this.energyInDirection = state.getValue(JigsawBlock.ORIENTATION).front();
+        this.energyOutDirection = this.energyInDirection.getOpposite();
     }
 
     @NotNull
@@ -43,8 +45,30 @@ public class EnergyDetectorEntity extends PeripheralBlockEntity<EnergyDetectorPe
         return new EnergyDetectorPeripheral(this);
     }
 
+    /**
+     * getCurrentTransferRate is thread safe
+     * @return The energy transfered in the last tick
+     */
     public int getCurrentTransferRate() {
         return currentTransferRate;
+    }
+
+    public int getMaxTransferRate() {
+        return APConfig.PERIPHERALS_CONFIG.energyDetectorMaxFlow.get();
+    }
+
+    /**
+     * @see EnergyStorageProxy.getMaxTransferRate
+     */
+    public int getTransferRateLimit() {
+        return storageProxy.getMaxTransferRate();
+    }
+
+    /**
+     * @see EnergyStorageProxy.setMaxTransferRate
+     */
+    public void setTransferRateLimit(int limit) {
+        storageProxy.setMaxTransferRate(Math.max(0, Math.min(getMaxTransferRate(), limit)));
     }
 
     @Override
@@ -62,7 +86,7 @@ public class EnergyDetectorEntity extends PeripheralBlockEntity<EnergyDetectorPe
     @Override
     public void saveAdditional(@NotNull CompoundTag compound) {
         super.saveAdditional(compound);
-        compound.putInt("rateLimit", storageProxy.getMaxTransferRate());
+        compound.putLong("rateLimit", storageProxy.getMaxTransferRate());
     }
 
     @Override
@@ -76,7 +100,7 @@ public class EnergyDetectorEntity extends PeripheralBlockEntity<EnergyDetectorPe
 
     @Override
     public void deserializeNBT(CompoundTag nbt) {
-        storageProxy.setMaxTransferRate(nbt.getInt("rateLimit"));
+        setTransferRateLimit(nbt.getLong("rateLimit"));
         super.deserializeNBT(nbt);
     }
 

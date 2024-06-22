@@ -19,19 +19,18 @@ public class EnergyDetectorPeripheral extends BasePeripheral<BlockEntityPeripher
         return APConfig.PERIPHERALS_CONFIG.enableEnergyDetector.get();
     }
 
-    @LuaFunction(mainThread = true)
+    @LuaFunction
     public final int getTransferRateLimit() {
-        return owner.tileEntity.storageProxy.getMaxTransferRate();
+        return owner.tileEntity.getTransferRateLimit();
     }
 
     @LuaFunction(mainThread = true)
-    public final void setTransferRateLimit(long transferRate) {
-        transferRate = Math.max(0, Math.min(APConfig.PERIPHERALS_CONFIG.energyDetectorMaxFlow.get(), transferRate));
-        owner.tileEntity.storageProxy.setMaxTransferRate((int) transferRate);
+    public final void setTransferRateLimit(int transferRate) {
+        owner.tileEntity.setTransferRateLimit(transferRate);
     }
 
-    @LuaFunction(mainThread = true)
+    @LuaFunction
     public final int getTransferRate() {
-        return owner.tileEntity.transferRate;
+        return owner.tileEntity.getCurrentTransferRate();
     }
 }

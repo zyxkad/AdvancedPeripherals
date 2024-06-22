@@ -10,10 +10,10 @@ public class EnergyStorageProxy {
     private final InputSide inputSide = this.new InputSide();
     private final OutputSide outputSide = this.new OutputSide();
     protected final EnergyDetectorEntity energyDetector;
-    private long maxTransferRate;
-    protected long transferedInTick = 0;
+    private int maxTransferRate;
+    protected int transferedInTick = 0;
 
-    public EnergyStorageProxy(EnergyDetectorEntity energyDetector, long maxTransferRate) {
+    public EnergyStorageProxy(EnergyDetectorEntity energyDetector, int maxTransferRate) {
         this.energyDetector = energyDetector;
         this.maxTransferRate = maxTransferRate;
     }
@@ -28,11 +28,11 @@ public class EnergyStorageProxy {
         return out.isEmpty() ? out.get().getCapacity() : 0;
     }
 
-    public long getMaxTransferRate() {
+    public int getMaxTransferRate() {
         return maxTransferRate;
     }
 
-    public void setMaxTransferRate(long rate) {
+    public void setMaxTransferRate(int rate) {
         maxTransferRate = rate;
     }
 
@@ -75,10 +75,10 @@ public class EnergyStorageProxy {
             if (transferred == 0) {
                 return 0;
             }
-            transferedInTick += transferred;
+            transferedInTick += (int) transferred;
             transaction.addCloseCallback((transaction, result) -> {
                 if (result == TransactionContext.Result.ABORTED) {
-                    transferedInTick -= transferred;
+                    transferedInTick -= (int) transferred;
                 }
             });
             return transferred;
@@ -135,10 +135,10 @@ public class EnergyStorageProxy {
             if (transferred == 0) {
                 return 0;
             }
-            transferedInTick += transferred;
+            transferedInTick += (int) transferred;
             transaction.addCloseCallback((transaction, result) -> {
                 if (result == TransactionContext.Result.ABORTED) {
-                    transferedInTick -= transferred;
+                    transferedInTick -= (int) transferred;
                 }
             });
             return 0;
