@@ -2,16 +2,21 @@ package de.srendi.advancedperipherals.common.util.inventory;
 
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
+import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
 import org.jetbrains.annotations.NotNull;
 
-public interface IStorageSystemItemHandler extends Container {
-
-    @NotNull
-    int insertItem(@NotNull ItemStack stack, boolean simulate);
-
-    @Override
-    default void setItem(int slot, ItemStack stack) {
-        insertItem(stack, false);
+public interface IStorageSystemItemHandler extends Storage<ItemVariant> {
+    default long insert(ItemStack stack, TransactionContext transaction) {
+        long transferred = insert(ItemVariant.of(stack), stack.getCount(), transaction);
+        stack.shrink((int) transferred);
+        transaction.addCloseCallback((transaction, result) -> {
+            if (result.wasAborted()) {
+                stack.grow((int) transferred);
+            }
+        });
+        return transferred;
     }
 
     /**
@@ -20,36 +25,9 @@ public interface IStorageSystemItemHandler extends Container {
      * stack sizes greater than 64.
      *
      * @param filter The parsed filter
-     * @param count The amount to extract
-     * @param simulate Should this action be simulated
+     * @param transaction The transaction this operation is part of.
      * @return extracted from the slot, must be empty if nothing can be extracted. The returned ItemStack can be safely modified after, so item handlers should return a new or copied stack.
      */
-    ItemStack extractItem(ItemFilter filter, int count, boolean simulate);
-
-    /*
-     * These 4 methods are ignored in our transferring logic. Storage Systems do not respect slots and to extract we need a filter
-     */
-
-    @Override
-    default int getContainerSize() {
-        return 0;
-    }
-
     @NotNull
-    @Override
-    default ItemStack removeItem(int slot, int amount) {
-        return ItemStack.EMPTY;
-    }
-
-    @NotNull
-    @Override
-    default ItemStack removeItemNoUpdate(int slot) {
-        return ItemStack.EMPTY;
-    }
-
-    @NotNull
-    @Override
-    default ItemStack getStackInSlot(int slot) {
-        return ItemStack.EMPTY;
-    }
+    ItemStack extract(ItemFilter filter, TransactionContext transaction);
 }

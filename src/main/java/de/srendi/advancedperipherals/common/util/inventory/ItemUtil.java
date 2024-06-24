@@ -6,17 +6,16 @@ import de.srendi.advancedperipherals.common.util.StringUtil;
 import de.srendi.advancedperipherals.shared.platform.RegistryWrappers;
 import net.minecraft.ResourceLocationException;
 import net.minecraft.core.NonNullList;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.IForgeRegistry;
 import org.apache.logging.log4j.Level;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.security.CloneNotSupportedException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +26,9 @@ public class ItemUtil {
 
     public static final Item POCKET_NORMAL = ModRegistry.Items.POCKET_COMPUTER_NORMAL.get();
     public static final Item POCKET_ADVANCED = ModRegistry.Items.POCKET_COMPUTER_ADVANCED.get();
+
+    private static final MessageDigest MD5 = MessageDigest.getInstance("MD5");
+    private static final CompoundTag EMPTY_TAG = new CompoundTag();
 
     private ItemUtil() {
     }
@@ -49,12 +51,18 @@ public class ItemUtil {
      * @return A generated MD5 hash from the item stack
      */
     public static String getFingerprint(ItemStack stack) {
-        String fingerprint = stack.getOrCreateTag() + getRegistryKey(stack).toString() + stack.getDisplayName().getString();
         try {
             byte[] bytesOfHash = fingerprint.getBytes(StandardCharsets.UTF_8);
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            return StringUtil.toHexString(md.digest(bytesOfHash));
-        } catch (NoSuchAlgorithmException ex) {
+            MessageDigest md = MD5.clone();
+            CompoundTag tag = stack.getTag();
+            if (tag == null) {
+                tag = EMPTY_TAG;
+            }
+            md.update(tag.toString().getBytes(StandardCharsets.UTF_8));
+            md.update(getRegistryKey(stack).toString().getBytes(StandardCharsets.UTF_8));
+            md.update(stack.getDisplayName().getString().getBytes(StandardCharsets.UTF_8));
+            return StringUtil.toHexString(md.digest());
+        } catch (CloneNotSupportedException ex) {
             AdvancedPeripherals.debug("Could not parse fingerprint.", Level.ERROR);
             ex.printStackTrace();
         }
@@ -73,16 +81,6 @@ public class ItemUtil {
         return stack;
     }
 
-    //Gathers all items in handler and returns them
-    public static List<ItemStack> getItemsFromItemHandler(IItemHandler handler) {
-        List<ItemStack> items = new ArrayList<>(handler.getSlots());
-        for (int slot = 0; slot < handler.getSlots(); slot++) {
-            items.add(handler.getStackInSlot(slot).copy());
-        }
-
-        return items;
-    }
-
     public static void addComputerItemToTab(ResourceLocation turtleID, ResourceLocation pocketID, NonNullList<ItemStack> items) {
         if (turtleID != null) {
             items.add(makeTurtle(TURTLE_ADVANCED, turtleID.toString()));
@@ -95,10 +93,10 @@ public class ItemUtil {
     }
 
     public static ResourceLocation getRegistryKey(Item item) {
-        return ForgeRegistries.ITEMS.getKey(item);
+        return BuiltInRegistries.ITEM.getKey(item);
     }
 
     public static ResourceLocation getRegistryKey(ItemStack item) {
-        return ForgeRegistries.ITEMS.getKey(item.copy().getItem());
+        return BuiltInRegistries.ITEM.getKey(item.getItem());
     }
 }

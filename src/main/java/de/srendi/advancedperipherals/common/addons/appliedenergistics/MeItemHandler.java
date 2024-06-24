@@ -29,24 +29,35 @@ public class MeItemHandler implements IStorageSystemItemHandler {
 
     @NotNull
     @Override
-    public ItemStack insertItem(@NotNull ItemStack stack, boolean simulate) {
-        AEItemKey itemKey = AEItemKey.of(stack.getItem(), stack.getTag());
-        long inserted = storageMonitor.insert(itemKey, stack.getCount(), simulate ? Actionable.SIMULATE : Actionable.MODULATE, actionSource);
-        ItemStack insertedStack = stack.copy();
-        // Safe to cast here, the amount will never be higher than 64
-        insertedStack.setCount(insertedStack.getCount() - (int) inserted);
-        return insertedStack;
+    public long insert(@NotNull ItemVariant item, long maxCount, TransactionContext transaction) {
+        AEItemKey itemKey = AEItemKey.of(item);
+        if (itemKey == null) {
+            return 0;
+        }
+        long inserted = storageMonitor.insert(itemKey, maxCount, Actionable.SIMULATE, actionSource);
+        transaction.addCloseCallback((transaction, result) -> {
+            if (result.wasCommitted()) {
+                // TODO: this is unsafe because we did not update the final inserted amount
+                storageMonitor.insert(itemKey, inserted, Actionable.MODULATE, actionSource);
+            }
+        });
+        return inserted;
     }
 
     @Override
-    public ItemStack extractItem(ItemFilter filter, int count, boolean simulate) {
-        Pair<Long, AEItemKey> itemKey = AppEngApi.findAEStackFromFilter(storageMonitor, null, filter);
-        if (itemKey.getRight() == null)
+    public ItemStack extract(ItemFilter filter, TransactionContext transaction) {
+        Pair<Long, AEItemKey> itemKeys = AppEngApi.findAEStackFromFilter(storageMonitor, null, filter);
+        if (itemKeys.getRight() == null) {
             return ItemStack.EMPTY;
-        long extracted = storageMonitor.extract(itemKey.getRight(), count, simulate ? Actionable.SIMULATE : Actionable.MODULATE, actionSource);
-        // Safe to cast here, the amount will never be higher than 64
-        ItemStack stack = itemKey.getRight().toStack();
-        stack.setCount((int) extracted);
+        }
+        AEItemKey itemKey = itemKeys.getRight();
+        long extracted = storageMonitor.extract(itemKey, filter.getCount(), Actionable.SIMULATE, actionSource);
+        ItemStack stack = itemKey.toStack(extracted);
+        transaction.addCloseCallback((transaction, result) -> {
+            if (result.wasCommitted()) {
+                stack.setCount(storageMonitor.extract(itemKey, extracted, Actionable.MODULATE, actionSource));
+            }
+        });
         return stack;
     }
 

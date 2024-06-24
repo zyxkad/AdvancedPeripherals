@@ -24,11 +24,43 @@ public class InventoryUtil {
     private InventoryUtil() {
     }
 
-    public static Container extractHandler(@Nullable Object object) {
-        if (object instanceof Container itemHandler) {
-            return itemHandler;
+    boolean checkStorageType(Storage<?> storage, Class<?> type) {
+        Iterator<StorageView<T>> iterator = storage.iterator();
+        if (!iterator.hasNext()) {
+            return true; // An empty storage
+        }
+        StorageView<T> sample = iterator.next();
+        return type.isInstance(sample.getResource());
+    }
+
+    @Nullable
+    private static Storage<ItemVariant> extractHandler(@Nullable Object object, @Nullable Direction direction) {
+        if (object instanceof Container container) {
+            return container;
+        }
+        if (object instanceof Storage<?> storage) {
+            return checkStorageType(storage, ItemVariant.class) ? storage : null;
+        }
+        BlockPos pos = null;
+        if (target instanceof IPeripheralOwner owner) {
+            pos = owner.getPos();
+        } else if (target instanceof BlockEntity block) {
+            pos = block.getBlockPos();
+        }
+        if (pos != null) {
+            return ItemStorage.SIDED.find(level, pos, direction);
         }
         return null;
+    }
+
+    @Nullable
+    private static Storage<FluidVariant> extractHandler(@NotNull IPeripheral peripheral) {
+        Object target = peripheral.getTarget();
+        Direction direction = null;
+        if (peripheral instanceof GenericPeripheral generic) {
+            direction = generic.getSide().opposite();
+        }
+        return extractHandler(target, direction);
     }
 
     public static int moveItem(Container invFrom, Container invTo, ItemFilter filter) {
@@ -211,7 +243,7 @@ public class InventoryUtil {
 
 
     @Nullable
-    public static Container getHandlerFromName(@NotNull IComputerAccess access, String name) throws LuaException {
+    public static Storage<ItemVariant> getHandlerFromName(@NotNull IComputerAccess access, String name) throws LuaException {
         IPeripheral location = access.getAvailablePeripheral(name);
         if (location == null) {
             return null;
@@ -221,7 +253,7 @@ public class InventoryUtil {
     }
 
     @Nullable
-    public static Container getHandlerFromDirection(@NotNull String direction, @NotNull IPeripheralOwner owner) throws LuaException {
+    public static Storage<ItemVariant> getHandlerFromDirection(@NotNull String direction, @NotNull IPeripheralOwner owner) throws LuaException {
         Level level = owner.getLevel();
         Objects.requireNonNull(level);
         Direction relativeDirection = CoordUtil.getDirection(owner.getOrientation(), direction);

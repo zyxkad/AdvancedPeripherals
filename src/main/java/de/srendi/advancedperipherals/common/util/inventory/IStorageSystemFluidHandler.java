@@ -1,60 +1,32 @@
 package de.srendi.advancedperipherals.common.util.inventory;
 
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
+import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
+import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
+import net.fabricmc.fabric.api.transfer.v1.transaction.TransactionContext;
+
 import org.jetbrains.annotations.NotNull;
 
-public interface IStorageSystemFluidHandler extends IFluidHandler {
+public interface IStorageSystemFluidHandler extends Storage<FluidVariant> {
+    default long insert(FluidStack stack, TransactionContext transaction) {
+        long transferred = insert(stack.getType(), stack.getAmount(), transaction);
+        stack.shrink(transferred);
+        transaction.addCloseCallback((transaction, result) -> {
+            if (result.wasAborted()) {
+                stack.grow(transferred);
+            }
+        });
+        return transferred;
+    }
 
     /**
-     * Used to extract an item from the system via a peripheral.
-     * Uses a filter to find the right item. The amount should never be greater than 64
-     * stack sizes greater than 64.
+     * Used to extract a type of fluid from the system via a peripheral.
+     * Uses a filter to find the right fluid.
      *
      * @param filter The parsed filter
-     * @param simulate Should this action be simulated
-     * @return extracted from the slot, must be empty if nothing can be extracted. The returned ItemStack can be safely modified after, so item handlers should return a new or copied stack.
+     * @param transaction The transaction this operation is part of.
+     * @return extracted from the slot, must be empty if nothing can be extracted. The returned FluidStack can be safely modified after, so fluid handlers should return a new or copied stack.
      */
     @NotNull
-    FluidStack drain(FluidFilter filter, FluidAction simulate);
-
-    @Override
-    default int getTanks() {
-        return 1;
-    }
-
-    /*
-    These 5 methods are ignored in our transferring logic. Storage Systems do not respect tanks directly and to extract we need a filter
-     */
-
-    @NotNull
-    @Override
-    default FluidStack drain(int maxDrain, FluidAction action) {
-        return FluidStack.EMPTY;
-
-    }
-
-    @NotNull
-    @Override
-    default FluidStack drain(FluidStack resource, FluidAction action) {
-        return FluidStack.EMPTY;
-
-    }
-
-    @NotNull
-    @Override
-    default FluidStack getFluidInTank(int tank) {
-        return FluidStack.EMPTY;
-    }
-
-    @Override
-    default boolean isFluidValid(int tank, @NotNull FluidStack stack) {
-        return false;
-
-    }
-
-    @Override
-    default int getTankCapacity(int tank) {
-        return 0;
-    }
+    FluidStack extract(FluidFilter filter, TransactionContext transaction);
 }

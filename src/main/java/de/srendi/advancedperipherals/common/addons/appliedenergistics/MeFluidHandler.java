@@ -7,7 +7,8 @@ import appeng.api.storage.MEStorage;
 import de.srendi.advancedperipherals.common.util.Pair;
 import de.srendi.advancedperipherals.common.util.inventory.FluidFilter;
 import de.srendi.advancedperipherals.common.util.inventory.IStorageSystemFluidHandler;
-import net.minecraftforge.fluids.FluidStack;
+import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -27,22 +28,39 @@ public class MeFluidHandler implements IStorageSystemFluidHandler {
     }
 
     @Override
-    public int fill(FluidStack resource, FluidAction action) {
-        if(resource.isEmpty())
+    public long insert(FluidVariant resource, long maxAmount, TransactionContext transaction) {
+        if (resource.isBlank() || maxAmount <= 0) {
             return 0;
-        AEFluidKey itemKey = AEFluidKey.of(resource.getFluid());
-        long inserted = storageMonitor.insert(itemKey, resource.getAmount(), action == FluidAction.SIMULATE ? Actionable.SIMULATE : Actionable.MODULATE, actionSource);
-
-        return (int) Math.min(inserted, Integer.MAX_VALUE);
+        }
+        AEFluidKey fluidKey = AEFluidKey.of(resource);
+        if (fluidKey == null) {
+            return 0;
+        }
+        long inserted = storageMonitor.insert(fluidKey, maxAmount, Actionable.SIMULATE, actionSource);
+        transaction.addCloseCallback((transaction, result) -> {
+            if (result.wasCommitted()) {
+                // TODO: this is unsafe because we did not update the final inserted amount
+                storageMonitor.insert(fluidKey, inserted, Actionable.MODULATE, actionSource);
+            }
+        });
+        return inserted;
     }
 
     @NotNull
     @Override
-    public FluidStack drain(FluidFilter filter, FluidAction simulate) {
-        Pair<Long, AEFluidKey> itemKey = AppEngApi.findAEFluidFromFilter(storageMonitor, null, filter);
-        if(itemKey == null)
+    public FluidStack extract(FluidFilter filter, TransactionContext transaction) {
+        Pair<Long, AEFluidKey> fluidKeys = AppEngApi.findAEFluidFromFilter(storageMonitor, null, filter);
+        if(fluidKeys == null) {
             return FluidStack.EMPTY;
-        long extracted = storageMonitor.extract(itemKey.getRight(), filter.getCount(), simulate == FluidAction.SIMULATE ? Actionable.SIMULATE : Actionable.MODULATE, actionSource);
-        return new FluidStack(itemKey.getRight().getFluid(), (int) Math.min(extracted, Integer.MAX_VALUE));
+        }
+        AEFluidKey fluidKey = fluidKey.getRight();
+        long extracted = storageMonitor.extract(fluidKey, filter.getCount(), Actionable.SIMULATE, actionSource);
+        FluidStack stack = new FluidStack(fluidKey.toVariant(), extracted);
+        transaction.addCloseCallback((transaction, result) -> {
+            if (result.wasCommitted()) {
+                stack.setAmount(storageMonitor.extract(fluidKey, extracted, Actionable.MODULATE, actionSource));
+            }
+        });
+        return stack;
     }
 }

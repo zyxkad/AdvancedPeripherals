@@ -23,19 +23,14 @@ import de.srendi.advancedperipherals.common.util.Pair;
 import de.srendi.advancedperipherals.common.util.inventory.FluidFilter;
 import de.srendi.advancedperipherals.common.util.inventory.ItemFilter;
 import de.srendi.advancedperipherals.common.util.inventory.ItemUtil;
-import io.github.projectet.ae2things.item.DISKDrive;
+import io.github.fabricators_of_create.porting_lib.fluids.FluidStack;
+import io.github.projectet.ae2things.storage.IDISKCellItem;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import me.ramidzkh.mekae2.ae2.MekanismKey;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.apache.logging.log4j.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -173,7 +168,7 @@ public class AppEngApi {
     private static Map<String, Object> getObjectFromFluidStack(Pair<Long, AEFluidKey> stack, @Nullable ICraftingService craftingService) {
         Map<String, Object> map = new HashMap<>();
         long amount = stack.getLeft();
-        map.put("name", ForgeRegistries.FLUIDS.getKey(stack.getRight().getFluid()).toString());
+        map.put("name", BuiltInRegistries.FLUID.getKey(stack.getRight().getFluid()).toString());
         map.put("amount", amount);
         map.put("displayName", stack.getRight().getDisplayName().getString());
         map.put("tags", LuaConverter.tagsToList(() -> stack.getRight().getFluid().builtInRegistryHolder().tags()));
@@ -311,27 +306,24 @@ public class AppEngApi {
     public static long getTotalItemStorage(IGridNode node) {
         long total = 0;
 
-        // note: do not query DriveBlockEntity.class specifically here, because it will avoid subclasses, e.g. the ME Extended Drive from ExtendedAE
-        Iterator<IGridNode> iterator = node.getGrid().getNodes().iterator();
-
-        while (iterator.hasNext()) {
-            if (!(iterator.next().getService(IStorageProvider.class) instanceof DriveBlockEntity entity))
+        for (IGridNode nd : node.getGrid().getNodes()) {
+            if (!(iterator.next().getService(IStorageProvider.class) instanceof DriveBlockEntity entity)) {
                 continue;
+            }
 
             InternalInventory inventory = entity.getInternalInventory();
-
             for (int i = 0; i < inventory.size(); i++) {
                 ItemStack stack = inventory.getStackInSlot(i);
 
-                if (stack.isEmpty())
+                if (stack.isEmpty()) {
                     continue;
-
+                }
                 if (stack.getItem() instanceof IBasicCellItem cell) {
                     if (cell.getKeyType().getClass().isAssignableFrom(AEKeyType.items().getClass())) {
                         total += cell.getBytes(null);
                     }
                 } else if (APAddons.aeThingsLoaded && stack.getItem() instanceof DISKDrive disk) {
-                    if (disk.getKeyType().toString().equals("ae2:i")) {
+                    if (disk.getKeyType() == AEKeyType.items()) {
                         total += disk.getBytes(null);
                     }
                 } else if (APAddons.aeAdditionsLoaded && (stack.getItem() instanceof SuperStorageCell superStorageCell)) {
@@ -348,22 +340,24 @@ public class AppEngApi {
             }
         }
 
-        iterator = node.getGrid().getMachineNodes(StorageBusPart.class).iterator();
-
-        while (iterator.hasNext()) {
+        for (IGridNode nd : node.getGrid().getMachineNodes(StorageBusPart.class).iterator()) {
             StorageBusPart bus = (StorageBusPart) iterator.next().getService(IStorageProvider.class);
             net.minecraft.world.level.Level level = bus.getLevel();
-            BlockPos connectedInventoryPos = bus.getHost().getBlockEntity().getBlockPos().relative(bus.getSide());
-            BlockEntity connectedInventoryEntity = level.getBlockEntity(connectedInventoryPos);
-            if (connectedInventoryEntity == null)
+            Direction side = bus.getSide();
+            if (side == null) {
                 continue;
-
-            LazyOptional<IItemHandler> itemHandler = connectedInventoryEntity.getCapability(ForgeCapabilities.ITEM_HANDLER);
-            if (itemHandler.isPresent()) {
-                IItemHandler handler = itemHandler.orElse(null);
-                for (int i = 0; i < handler.getSlots(); i++) {
-                    total += handler.getSlotLimit(i);
-                }
+            }
+            BlockPos connectedInventoryPos = bus.getHost().getBlockEntity().getBlockPos().relative(side);
+            BlockEntity connectedInventoryEntity = level.getBlockEntity(connectedInventoryPos);
+            if (connectedInventoryEntity == null) {
+                continue;
+            }
+            Storage<ItemVariant> itemStorage = ItemStorage.SIDED.find(level, connectedInventoryPos, side.opposite());
+            if (itemStorage == null) {
+                continue;
+            }
+            for (StorageView<ItemVariant> view : itemStorage) {
+                total += view.getCapacity();
             }
         }
 
@@ -373,14 +367,12 @@ public class AppEngApi {
     public static long getTotalFluidStorage(IGridNode node) {
         long total = 0;
 
-        Iterator<IGridNode> iterator = node.getGrid().getNodes().iterator();
-
-        while (iterator.hasNext()) {
-            if (!(iterator.next().getService(IStorageProvider.class) instanceof DriveBlockEntity entity))
+        for (IGridNode nd : node.getGrid().getNodes()) {
+            if (!(nd.getService(IStorageProvider.class) instanceof DriveBlockEntity entity)) {
                 continue;
+            }
 
             InternalInventory inventory = entity.getInternalInventory();
-
             for (int i = 0; i < inventory.size(); i++) {
                 ItemStack stack = inventory.getStackInSlot(i);
 
@@ -394,33 +386,32 @@ public class AppEngApi {
                 } else if (APAddons.aeAdditionsLoaded && stack.getItem() instanceof SuperStorageCell superStorageCell) {
                     total += superStorageCell.getKiloBytes() * 1024L;
                 } else if (APAddons.aeAdditionsLoaded && (stack.getItem() instanceof StorageCell storageCell)) {
-                    if (storageCell.getKeyType() != AEKeyType.fluids())
+                    if (storageCell.getKeyType() == AEKeyType.fluids()) {
                         continue;
+                    }
                     total += storageCell.getKiloBytes() * 1024L;
-                } else if (APAddons.aeAdditionsLoaded && (stack.getItem() instanceof StorageCell storageCell)) {
-                    if (storageCell.getKeyType() != AEKeyType.fluids())
-                        continue;
-                    total += storageCell.getKiloBytes() * 1024;
                 }
             }
         }
 
-        iterator = node.getGrid().getMachineNodes(StorageBusPart.class).iterator();
-
-        while (iterator.hasNext()) {
-            StorageBusPart bus = (StorageBusPart) iterator.next().getService(IStorageProvider.class);
+        for (IGridNode nd : node.getGrid().getMachineNodes(StorageBusPart.class).iterator()) {
+            StorageBusPart bus = (StorageBusPart) nd.getService(IStorageProvider.class);
             net.minecraft.world.level.Level level = bus.getLevel();
-            BlockPos connectedInventoryPos = bus.getHost().getBlockEntity().getBlockPos().relative(bus.getSide());
-            BlockEntity connectedInventoryEntity = level.getBlockEntity(connectedInventoryPos);
-            if (connectedInventoryEntity == null)
+            Direction side = bus.getSide();
+            if (side == null) {
                 continue;
-
-            LazyOptional<IFluidHandler> fluidHandler = connectedInventoryEntity.getCapability(ForgeCapabilities.FLUID_HANDLER);
-            if (fluidHandler.isPresent()) {
-                IFluidHandler handler = fluidHandler.orElse(null);
-                for (int i = 0; i < handler.getTanks(); i++) {
-                    total += handler.getTankCapacity(i);
-                }
+            }
+            BlockPos connectedInventoryPos = bus.getHost().getBlockEntity().getBlockPos().relative(side);
+            BlockEntity connectedInventoryEntity = level.getBlockEntity(connectedInventoryPos);
+            if (connectedInventoryEntity == null) {
+                continue;
+            }
+            Storage<FluidVariant> fluidStorage = FluidStorage.SIDED.find(level, connectedInventoryPos, side.opposite());
+            if (fluidStorage == null) {
+                continue;
+            }
+            for (StorageView<FluidVariant> view : fluidStorage) {
+                total += view.getCapacity();
             }
         }
 
@@ -430,10 +421,8 @@ public class AppEngApi {
     public static long getUsedItemStorage(IGridNode node) {
         long used = 0;
 
-        Iterator<IGridNode> iterator = node.getGrid().getNodes().iterator();
-
-        while (iterator.hasNext()) {
-            if (!(iterator.next().getService(IStorageProvider.class) instanceof DriveBlockEntity entity))
+        for (IGridNode nd : node.getGrid().getNodes().iterator()) {
+            if (!(nd.getService(IStorageProvider.class) instanceof DriveBlockEntity entity))
                 continue;
 
             InternalInventory inventory = entity.getInternalInventory();
@@ -441,9 +430,9 @@ public class AppEngApi {
             for (int i = 0; i < inventory.size(); i++) {
                 ItemStack stack = inventory.getStackInSlot(i);
 
-                if (stack.isEmpty())
+                if (stack.isEmpty()) {
                     continue;
-
+                }
                 if (stack.getItem() instanceof IBasicCellItem cell) {
                     int bytesPerType = cell.getBytesPerType(null);
 
@@ -456,12 +445,14 @@ public class AppEngApi {
                         used += ((int) Math.ceil(((double) numItemsInCell) / 8)) + ((long) bytesPerType * numOfType);
                     }
                 } else if (APAddons.aeThingsLoaded && stack.getItem() instanceof DISKDrive disk) {
-                    if (disk.getKeyType().toString().equals("ae2:i")) {
-                        if (stack.getTag() == null)
-                            continue;
-                        long numBytesInCell = stack.getTag().getLong("ic");
-                        used += numBytesInCell;
+                    if (disk.getKeyType() != AEKeyType.items()) {
+                        continue;
                     }
+                    if (stack.getTag() == null) {
+                        continue;
+                    }
+                    long numBytesInCell = stack.getTag().getLong("ic");
+                    used += numBytesInCell;
                 } else if (APAddons.aeAdditionsLoaded && stack.getItem() instanceof SuperStorageCell) {
                     if (stack.getTag() == null)
                         continue;
@@ -480,10 +471,8 @@ public class AppEngApi {
             }
         }
 
-        iterator = node.getGrid().getMachineNodes(StorageBusPart.class).iterator();
-
-        while (iterator.hasNext()) {
-            StorageBusPart bus = (StorageBusPart) iterator.next().getService(IStorageProvider.class);
+        for (IGridNode nd : node.getGrid().getMachineNodes(StorageBusPart.class).iterator()) {
+            StorageBusPart bus = (StorageBusPart) nd.getService(IStorageProvider.class);
             KeyCounter keyCounter = bus.getInternalHandler().getAvailableStacks();
 
             for (Object2LongMap.Entry<AEKey> aeKey : keyCounter) {
@@ -499,17 +488,18 @@ public class AppEngApi {
     public static long getUsedFluidStorage(IGridNode node) {
         long used = 0;
 
-        Iterator<IGridNode> iterator = node.getGrid().getNodes().iterator();
-
-        while (iterator.hasNext()) {
-            if (!(iterator.next().getService(IStorageProvider.class) instanceof DriveBlockEntity entity))
+        for (IGridNode nd : node.getGrid().getNodes().iterator()) {
+            if (!(nd.getService(IStorageProvider.class) instanceof DriveBlockEntity entity)) {
                 continue;
+            }
 
             InternalInventory inventory = entity.getInternalInventory();
-
             for (int i = 0; i < inventory.size(); i++) {
                 ItemStack stack = inventory.getStackInSlot(i);
 
+                if (stack.isEmpty()) {
+                    continue;
+                }
                 if (stack.getItem() instanceof IBasicCellItem cell) {
                     int bytesPerType = cell.getBytesPerType(null);
 
@@ -539,10 +529,8 @@ public class AppEngApi {
             }
         }
 
-        iterator = node.getGrid().getMachineNodes(StorageBusPart.class).iterator();
-
-        while (iterator.hasNext()) {
-            StorageBusPart bus = (StorageBusPart) iterator.next().getService(IStorageProvider.class);
+        for (IGridNode nd : node.getGrid().getMachineNodes(StorageBusPart.class).iterator()) {
+            StorageBusPart bus = (StorageBusPart) nd.getService(IStorageProvider.class);
             KeyCounter keyCounter = bus.getInternalHandler().getAvailableStacks();
 
             for (Object2LongMap.Entry<AEKey> aeKey : keyCounter) {
@@ -566,22 +554,19 @@ public class AppEngApi {
     public static List<Object> listCells(IGridNode node) {
         List<Object> items = new ArrayList<>();
 
-        Iterator<IGridNode> iterator = node.getGrid().getNodes().iterator();
-
-        if (!iterator.hasNext()) return items;
-        while (iterator.hasNext()) {
-            DriveBlockEntity entity = (DriveBlockEntity) iterator.next().getService(IStorageProvider.class);
-            if (entity == null)
+        for (IGridNode nd : node.getGrid().getNodes().iterator()) {
+            DriveBlockEntity entity = (DriveBlockEntity) nd.getService(IStorageProvider.class);
+            if (entity == null) {
                 continue;
+            }
 
             InternalInventory inventory = entity.getInternalInventory();
-
             for (int i = 0; i < inventory.size(); i++) {
                 ItemStack stack = inventory.getStackInSlot(i);
 
-                if (stack.isEmpty())
+                if (stack.isEmpty()) {
                     continue;
-
+                }
                 if (stack.getItem() instanceof IBasicCellItem cell) {
                     items.add(getObjectFromCell(cell, stack));
                 } else if (APAddons.aeThingsLoaded && stack.getItem() instanceof DISKDrive disk) {
@@ -602,9 +587,9 @@ public class AppEngApi {
 
         String cellType = "";
 
-        if (cell.getKeyType().getClass().isAssignableFrom(AEKeyType.items().getClass())) {
+        if (cell.getKeyType() == AEKeyType.items()) {
             cellType = "item";
-        } else if (cell.getKeyType().getClass().isAssignableFrom(AEKeyType.fluids().getClass())) {
+        } else if (cell.getKeyType() == AEKeyType.fluids()) {
             cellType = "fluid";
         }
 
@@ -618,13 +603,13 @@ public class AppEngApi {
     private static Map<String, Object> getObjectFromDisk(DISKDrive drive, ItemStack stack) {
         Map<String, Object> map = new HashMap<>();
 
-        map.put("item", stack.getItem().toString());
+        map.put("item", ItemUtil.getRegistryKey(stack.getItem()).toString());
 
         String cellType = "";
 
-        if (drive.getKeyType().toString().equals("ae2:i")) {
+        if (drive.getKeyType() == AEKeyType.items()) {
             cellType = "item";
-        } else if (drive.getKeyType().toString().equals("ae2:f")) {
+        } else if (drive.getKeyType() == AEKeyType.fluids()) {
             cellType = "fluid";
         }
 

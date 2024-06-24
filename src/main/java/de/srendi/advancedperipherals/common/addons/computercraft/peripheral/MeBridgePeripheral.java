@@ -26,7 +26,6 @@ import de.srendi.advancedperipherals.common.util.inventory.FluidUtil;
 import de.srendi.advancedperipherals.common.util.inventory.InventoryUtil;
 import de.srendi.advancedperipherals.common.util.inventory.ItemFilter;
 import de.srendi.advancedperipherals.lib.peripherals.BasePeripheral;
-import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -67,7 +66,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
      * @param targetInventory the give inventory
      * @return the exportable amount or null with a string if something went wrong
      */
-    protected MethodResult exportToChest(@NotNull IArguments arguments, @Nullable IItemHandler targetInventory) throws LuaException {
+    protected MethodResult exportToChest(@NotNull IArguments arguments, @Nullable Storage<ItemVariant> targetInventory) throws LuaException {
         MEStorage monitor = AppEngApi.getMonitor(node);
         MeItemHandler itemHandler = new MeItemHandler(monitor, tile);
         Pair<ItemFilter, String> filter = ItemFilter.parse(arguments.getTable(0));
@@ -88,7 +87,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
      * @param targetTank the give tank
      * @return the exportable amount or null with a string if something went wrong
      */
-    protected MethodResult exportToTank(@NotNull IArguments arguments, @Nullable IFluidHandler targetTank) throws LuaException {
+    protected MethodResult exportToTank(@NotNull IArguments arguments, @Nullable Storage<FluidVariant> targetTank) throws LuaException {
         MEStorage monitor = AppEngApi.getMonitor(node);
         MeFluidHandler fluidHandler = new MeFluidHandler(monitor, tile);
         Pair<FluidFilter, String> filter = FluidFilter.parse(arguments.getTable(0));
@@ -109,7 +108,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
      * @param targetInventory the give inventory
      * @return the imported amount or null with a string if something went wrong
      */
-    protected MethodResult importToME(@NotNull IArguments arguments, @Nullable IItemHandler targetInventory) throws LuaException {
+    protected MethodResult importToME(@NotNull IArguments arguments, @Nullable Storage<ItemVariant> targetInventory) throws LuaException {
         MEStorage monitor = AppEngApi.getMonitor(node);
         MeItemHandler itemHandler = new MeItemHandler(monitor, tile);
         Pair<ItemFilter, String> filter = ItemFilter.parse(arguments.getTable(0));
@@ -130,7 +129,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
      * @param targetTank the give tank
      * @return the imported amount or null with a string if something went wrong
      */
-    protected MethodResult importToME(@NotNull IArguments arguments, @Nullable IFluidHandler targetTank) throws LuaException {
+    protected MethodResult importToME(@NotNull IArguments arguments, @Nullable Storage<FluidVariant> targetTank) throws LuaException {
         MEStorage monitor = AppEngApi.getMonitor(node);
         MeFluidHandler fluidHandler = new MeFluidHandler(monitor, tile);
         Pair<FluidFilter, String> filter = FluidFilter.parse(arguments.getTable(0));
@@ -332,13 +331,13 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
 
     @LuaFunction(mainThread = true)
     public final MethodResult exportFluid(@NotNull IArguments arguments) throws LuaException {
-        IFluidHandler handler = FluidUtil.getHandlerFromDirection(arguments.getString(1), owner);
+        Storage<FluidVariant> handler = FluidUtil.getStorageFromDirection(arguments.getString(1), owner);
         return exportToTank(arguments, handler);
     }
 
     @LuaFunction(mainThread = true)
     public final MethodResult exportFluidToPeripheral(IComputerAccess computer, IArguments arguments) throws LuaException {
-        IFluidHandler handler = FluidUtil.getHandlerFromName(computer, arguments.getString(1));
+        Storage<FluidVariant> handler = FluidUtil.getStorageFromName(computer, arguments.getString(1));
 
         if (handler == null)
             return MethodResult.of(0, "The target tank does not exist. Make sure the bridge is exposed in the computer network. Reach out to our discord or our documentation for help.");
@@ -348,13 +347,13 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
 
     @LuaFunction(mainThread = true)
     public final MethodResult importFluid(IArguments arguments) throws LuaException {
-        IFluidHandler handler = FluidUtil.getHandlerFromDirection(arguments.getString(1), owner);
+        Storage<FluidVariant> handler = FluidUtil.getStorageFromDirection(arguments.getString(1), owner);
         return importToME(arguments, handler);
     }
 
     @LuaFunction(mainThread = true)
     public final MethodResult importFluidFromPeripheral(IComputerAccess computer, IArguments arguments) throws LuaException {
-        IFluidHandler handler = FluidUtil.getHandlerFromName(computer, arguments.getString(1));
+        Storage<FluidVariant> handler = FluidUtil.getStorageFromName(computer, arguments.getString(1));
 
         if (handler == null)
             return MethodResult.of(0, "The target tank does not exist. Make sure the bridge is exposed in the computer network. Reach out to our discord or our documentation for help.");
@@ -367,7 +366,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
         if (!isConnected())
             return notConnected();
 
-        IItemHandler inventory = InventoryUtil.getHandlerFromDirection(arguments.getString(1), owner);
+        Storage<ItemVariant> inventory = InventoryUtil.getStorageFromDirection(arguments.getString(1), owner);
         return exportToChest(arguments, inventory);
     }
 
@@ -376,7 +375,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
         if (!isConnected())
             return notConnected();
 
-        IItemHandler inventory = InventoryUtil.getHandlerFromName(computer, arguments.getString(1));
+        Storage<ItemVariant> inventory = InventoryUtil.getStorageFromName(computer, arguments.getString(1));
 
         if (inventory == null)
             return MethodResult.of(0, "The target inventory does not exist. Make sure the bridge is exposed in the computer network. Reach out to our discord or our documentation for help.");
@@ -389,7 +388,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
         if (!isConnected())
             return notConnected();
 
-        IItemHandler inventory = InventoryUtil.getHandlerFromDirection(arguments.getString(1), owner);
+        Storage<ItemVariant> inventory = InventoryUtil.getStorageFromDirection(arguments.getString(1), owner);
         return importToME(arguments, inventory);
     }
 
@@ -398,7 +397,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
         if (!isConnected())
             return notConnected();
 
-        IItemHandler inventory = InventoryUtil.getHandlerFromName(computer, arguments.getString(1));
+        Storage<ItemVariant> inventory = InventoryUtil.getStorageFromName(computer, arguments.getString(1));
 
         if (inventory == null)
             return MethodResult.of(0, "The target inventory does not exist. Make sure the bridge is exposed in the computer network. Reach out to our discord or our documentation for help.");
