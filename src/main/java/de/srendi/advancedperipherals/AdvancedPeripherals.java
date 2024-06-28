@@ -5,6 +5,7 @@ import net.fabricmc.api.ModInitializer;
 import de.srendi.advancedperipherals.common.addons.APAddons;
 import de.srendi.advancedperipherals.common.configuration.APConfig;
 import de.srendi.advancedperipherals.common.setup.Registration;
+import de.srendi.advancedperipherals.common.util.ChunkManager;
 import de.srendi.advancedperipherals.network.APNetworking;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -57,8 +58,10 @@ public class AdvancedPeripherals implements ModInitializer {
         ServerTickEvents.START_SERVER_TICK.register((server) -> {
             if (server != null && SERVER == null) {
                 SERVER = server;
+                ChunkManager.afterServerStarted(server);
             }
         });
+        ServerTickEvents.END_SERVER_TICK.register(ChunkManager::serverTick);
     }
 
     public String getVersion() {

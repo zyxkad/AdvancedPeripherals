@@ -2,6 +2,7 @@ package de.srendi.advancedperipherals.common.addons;
 
 import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.addons.refinedstorage.RefinedStorage;
+import de.srendi.advancedperipherals.shared.platform.PlatformHelper;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
@@ -26,12 +27,11 @@ public class APAddons {
     }
 
     public static void commonSetup() {
-        ModList modList = ModList.get();
-        curiosLoaded = modList.isLoaded(CURIOS_MODID);
-        refinedStorageLoaded = modList.isLoaded(REFINEDSTORAGE_MODID);
-        aeThingsLoaded = modList.isLoaded(AE_THINGS_MODID);
-        aeAdditionsLoaded = modList.isLoaded(AE_ADDITIONS_MODID);
-        appMekLoaded = modList.isLoaded(APP_MEKANISTICS_MODID);
+        curiosLoaded = PlatformHelper.get().isModLoaded(CURIOS_MODID);
+        refinedStorageLoaded = PlatformHelper.get().isModLoaded(REFINEDSTORAGE_MODID);
+        aeThingsLoaded = PlatformHelper.get().isModLoaded(AE_THINGS_MODID);
+        aeAdditionsLoaded = PlatformHelper.get().isModLoaded(AE_ADDITIONS_MODID);
+        appMekLoaded = PlatformHelper.get().isModLoaded(APP_MEKANISTICS_MODID);
 
         if (refinedStorageLoaded)
             RefinedStorage.instance = new RefinedStorage();

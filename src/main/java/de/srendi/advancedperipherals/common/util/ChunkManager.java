@@ -6,24 +6,21 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraftforge.common.world.ForgeChunkManager;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+
 import org.apache.logging.log4j.Level;
 import org.jetbrains.annotations.NotNull;
-
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
 
-@Mod.EventBusSubscriber(modid = AdvancedPeripherals.MOD_ID)
 public class ChunkManager extends SavedData {
 
+    public static final TicketType<UUID> CHUNK_TICKET_TYPE = create(AdvancedPeripherals.MOD_ID + ":chunk_manager", Comparator.comparingLong(ChunkPos::toLong), 30 * 20);
     private static final String DATA_NAME = AdvancedPeripherals.MOD_ID + "_ForcedChunks";
     private static final String FORCED_CHUNKS_TAG = "forcedChunks";
     private static int tickCounter = 0;
@@ -32,6 +29,10 @@ public class ChunkManager extends SavedData {
 
     public ChunkManager() {
         super();
+    }
+
+    private static int getValidTime() {
+        return APConfig.PERIPHERALS_CONFIG.chunkLoadValidTime.get();
     }
 
     public static @NotNull ChunkManager get(@NotNull ServerLevel level) {
@@ -48,32 +49,32 @@ public class ChunkManager extends SavedData {
         return manager;
     }
 
-    @SubscribeEvent
-    public static void afterServerStarted(ServerStartedEvent event) {
-        ChunkManager.get(event.getServer().overworld()).init();
+    public static void afterServerStarted(MinecraftServer server) {
+        ChunkManager.get(server.overworld()).init();
     }
 
-    @SubscribeEvent
-    public static void serverTick(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            tickCounter++;
-            // run cleanup per chunkLoadValidTime / 10
-            final int checkIntervalInTick = APConfig.PERIPHERALS_CONFIG.chunkLoadValidTime.get() * 20 / 10;
-            if (tickCounter >= checkIntervalInTick) {
-                tickCounter = 0;
-                ChunkManager.get(AdvancedPeripherals.getServer().overworld()).cleanup();
-            }
+    public static void serverTick(MinecraftServer server) {
+        tickCounter++;
+        // run cleanup per chunkLoadValidTime / 10
+        final int checkIntervalInTick = getValidTime() * 20 / 10;
+        if (tickCounter >= checkIntervalInTick) {
+            tickCounter = 0;
+            ChunkManager.get(server.overworld()).cleanup();
         }
     }
 
-    private static boolean forceChunk(UUID owner, ServerLevel level, ChunkPos pos) {
+    private static boolean forceChunk(UUID owner, ServerLevel level, ChunkPos pos, int radius) {
         AdvancedPeripherals.debug("Forcing chunk " + pos, Level.WARN);
-        return ForgeChunkManager.forceChunk(level, AdvancedPeripherals.MOD_ID, owner, pos.x, pos.z, true, true);
+        // return ForgeChunkManager.forceChunk(level, AdvancedPeripherals.MOD_ID, owner, pos.x, pos.z, true, true);
+        level.getChunkSource().addTicket(CHUNK_TICKET_TYPE, pos, radius, owner);
+        return true;
     }
 
-    private static boolean unforceChunk(UUID owner, ServerLevel level, ChunkPos pos) {
+    private static boolean unforceChunk(UUID owner, ServerLevel level, ChunkPos pos, int radius) {
         AdvancedPeripherals.debug("Unforcing chunk " + pos, Level.WARN);
-        return ForgeChunkManager.forceChunk(level, AdvancedPeripherals.MOD_ID, owner, pos.x, pos.z, false, true);
+        // return ForgeChunkManager.forceChunk(level, AdvancedPeripherals.MOD_ID, owner, pos.x, pos.z, false, true);
+        level.getChunkSource().removeTicket(CHUNK_TICKET_TYPE, pos, radius, owner);
+        return true;
     }
 
     public synchronized boolean addForceChunk(ServerLevel level, UUID owner, ChunkPos pos) {
@@ -89,19 +90,18 @@ public class ChunkManager extends SavedData {
         final int chunkRadius = APConfig.PERIPHERALS_CONFIG.chunkyTurtleRadius.get();
         forcedChunks.put(owner, new LoadChunkRecord(level.dimension().location().toString(), pos, chunkRadius));
         setDirty();
-        boolean result = true;
-        for (int x = -chunkRadius; x <= chunkRadius; x++) {
-            for (int z = -chunkRadius; z <= chunkRadius; z++) {
-                result &= forceChunk(owner, level, new ChunkPos(pos.x + x, pos.z + z));
-            }
-        }
-        return result;
+        forceChunk(owner, level, new ChunkPos(pos.x, pos.z), chunkRadius);
+        return true;
     }
 
     public synchronized void touch(UUID owner) {
         LoadChunkRecord forcedChunk = forcedChunks.get(owner);
         if (forcedChunk != null) {
             forcedChunk.touch();
+            ServerLevel level = getServerLevel(forcedChunk.getDimensionName());
+            if (level != null) {
+                forceChunk(owner, level, forcedChunk.getPos(), forcedChunk.getRadius());
+            }
         }
     }
 
@@ -134,11 +134,7 @@ public class ChunkManager extends SavedData {
         final ChunkPos pos = chunkRecord.getPos();
         final int chunkRadius = chunkRecord.getRadius();
         AdvancedPeripherals.debug(String.format("Trying to unload forced chunk cluster %s at %s with radius %d", owner, pos, chunkRadius), Level.WARN);
-        for (int x = -chunkRadius; x <= chunkRadius; x++) {
-            for (int z = -chunkRadius; z <= chunkRadius; z++) {
-                result &= unforceChunk(owner, level, new ChunkPos(pos.x + x, pos.z + z));
-            }
-        }
+        unforceChunk(owner, level, new ChunkPos(pos.x, pos.z), chunkRadius);
         return result;
     }
 
@@ -161,35 +157,11 @@ public class ChunkManager extends SavedData {
             final ChunkPos pos = value.getPos();
             final int loadedRadius = value.getRadius();
             AdvancedPeripherals.debug(String.format("Recorded chunk in %s at %s with radius %d", dimensionName, pos, loadedRadius), Level.INFO);
-            if (loadedRadius == chunkRadius) {
-                return;
-            }
-            if (loadedRadius == -1) {
-                // if it's coming from old version, just force all
-                for (int x = -chunkRadius; x <= chunkRadius; x++) {
-                    for (int z = -chunkRadius; z <= chunkRadius; z++) {
-                        forceChunk(uuid, level, new ChunkPos(pos.x + x, pos.z + z));
-                    }
-                }
-            } else if (loadedRadius > chunkRadius) {
-                // clean overflowed load radius
-                for (int x = -loadedRadius; x <= loadedRadius; x++) {
-                    for (int z = -loadedRadius; z <= loadedRadius; z++) {
-                        if (Math.abs(x) > chunkRadius || Math.abs(z) > chunkRadius) {
-                            unforceChunk(uuid, level, new ChunkPos(pos.x + x, pos.z + z));
-                        }
-                    }
-                }
-            } else if (loadedRadius < chunkRadius) {
-                // otherwise, only do the changed part to reduce startup time (in case we have a lot chunky turtle)
-                for (int x = -chunkRadius; x <= chunkRadius; x++) {
-                    for (int z = -chunkRadius; z <= chunkRadius; z++) {
-                        if (Math.abs(x) > loadedRadius || Math.abs(z) > loadedRadius) {
-                            forceChunk(uuid, level, new ChunkPos(pos.x + x, pos.z + z));
-                        }
-                    }
-                }
-            }
+            // if (loadedRadius == chunkRadius) {
+            //     return;
+            // }
+            // unforceChunk(uuid, level, new ChunkPos(pos.x, pos.z), loadedRadius);
+            forceChunk(uuid, level, new ChunkPos(pos.x, pos.z), chunkRadius);
             value.setRadius(chunkRadius);
             setDirty();
         });
@@ -238,6 +210,7 @@ public class ChunkManager extends SavedData {
         return levels;
     }
 
+    @Nullable
     private static ServerLevel getServerLevel(String name) {
         ResourceKey<net.minecraft.world.level.Level> key = ResourceKey.create(Registries.DIMENSION, new ResourceLocation(name));
         return AdvancedPeripherals.getServer().getLevel(key);
@@ -289,7 +262,7 @@ public class ChunkManager extends SavedData {
 
         public boolean isValid() {
             long currentEpoch = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC);
-            return lastTouch + APConfig.PERIPHERALS_CONFIG.chunkLoadValidTime.get() >= currentEpoch;
+            return lastTouch + getValidTime() >= currentEpoch;
         }
 
         public @NotNull CompoundTag serialize() {

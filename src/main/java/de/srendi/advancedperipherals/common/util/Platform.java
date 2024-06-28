@@ -2,14 +2,13 @@ package de.srendi.advancedperipherals.common.util;
 
 import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.configuration.APConfig;
-import net.minecraftforge.fml.ModList;
 
 import java.util.Optional;
 
 public class Platform {
 
     public static Optional<Object> maybeLoadIntegration(final String modid, final String path) {
-        if (!ModList.get().isLoaded(modid)) {
+        if (!PlatformHelper.get().isModLoaded(modid)) {
             AdvancedPeripherals.LOGGER.info("{} not loaded, skip integration loading", modid);
             return Optional.empty();
         }
