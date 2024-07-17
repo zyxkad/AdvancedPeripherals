@@ -62,6 +62,7 @@ public class AdvancedPeripherals implements ModInitializer {
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(ChunkManager::serverTick);
+        ServerTickEvents.END_SERVER_TICK.register(ServerWorker::serverTick);
     }
 
     public String getVersion() {

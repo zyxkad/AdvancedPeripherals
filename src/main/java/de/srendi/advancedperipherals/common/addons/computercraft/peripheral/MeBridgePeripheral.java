@@ -110,7 +110,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
      * @param targetInventory the give inventory
      * @return the imported amount or null with a string if something went wrong
      */
-    protected MethodResult importToME(@NotNull IArguments arguments, @Nullable Storage<ItemVariant> targetInventory) throws LuaException {
+    protected MethodResult importItemToME(@NotNull IArguments arguments, @Nullable Storage<ItemVariant> targetInventory) throws LuaException {
         MEStorage monitor = AppEngApi.getMonitor(node);
         MeItemHandler itemHandler = new MeItemHandler(monitor, tile);
         Pair<ItemFilter, String> filter = ItemFilter.parse(arguments.getTable(0));
@@ -131,7 +131,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
      * @param targetTank the give tank
      * @return the imported amount or null with a string if something went wrong
      */
-    protected MethodResult importToME(@NotNull IArguments arguments, @Nullable Storage<FluidVariant> targetTank) throws LuaException {
+    protected MethodResult importFludiToME(@NotNull IArguments arguments, @Nullable Storage<FluidVariant> targetTank) throws LuaException {
         MEStorage monitor = AppEngApi.getMonitor(node);
         MeFluidHandler fluidHandler = new MeFluidHandler(monitor, tile);
         Pair<FluidFilter, String> filter = FluidFilter.parse(arguments.getTable(0));
@@ -350,7 +350,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
     @LuaFunction(mainThread = true)
     public final MethodResult importFluid(IArguments arguments) throws LuaException {
         Storage<FluidVariant> handler = FluidUtil.getStorageFromDirection(arguments.getString(1), owner);
-        return importToME(arguments, handler);
+        return importFluidToME(arguments, handler);
     }
 
     @LuaFunction(mainThread = true)
@@ -360,7 +360,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
         if (handler == null)
             return MethodResult.of(0, "The target tank does not exist. Make sure the bridge is exposed in the computer network. Reach out to our discord or our documentation for help.");
 
-        return importToME(arguments, handler);
+        return importFluidToME(arguments, handler);
     }
 
     @LuaFunction(mainThread = true)
@@ -391,7 +391,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
             return notConnected();
 
         Storage<ItemVariant> inventory = InventoryUtil.getStorageFromDirection(arguments.getString(1), owner);
-        return importToME(arguments, inventory);
+        return importItemToME(arguments, inventory);
     }
 
     @LuaFunction(mainThread = true)
@@ -404,7 +404,7 @@ public class MeBridgePeripheral extends BasePeripheral<BlockEntityPeripheralOwne
         if (inventory == null)
             return MethodResult.of(0, "The target inventory does not exist. Make sure the bridge is exposed in the computer network. Reach out to our discord or our documentation for help.");
 
-        return importToME(arguments, inventory);
+        return importItemToME(arguments, inventory);
     }
 
     @LuaFunction(mainThread = true)

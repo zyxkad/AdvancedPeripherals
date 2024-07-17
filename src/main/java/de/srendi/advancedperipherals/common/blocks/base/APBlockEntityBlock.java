@@ -1,6 +1,7 @@
 package de.srendi.advancedperipherals.common.blocks.base;
 
 import de.srendi.advancedperipherals.common.blocks.blockentities.EnergyDetectorEntity;
+import de.srendi.advancedperipherals.shared.platform.RegistryEntry;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.SoundType;
@@ -8,20 +9,19 @@ import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.registries.RegistryObject;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class APBlockEntityBlock<T extends BlockEntity> extends BaseBlockEntityBlock {
 
-    private final RegistryObject<BlockEntityType<T>> tileEntity;
+    private final RegistryEntry<BlockEntityType<T>> tileEntity;
 
-    public APBlockEntityBlock(RegistryObject<BlockEntityType<T>> tileEntity, Properties properties, boolean belongToTickingEntity) {
+    public APBlockEntityBlock(RegistryEntry<BlockEntityType<T>> tileEntity, Properties properties, boolean belongToTickingEntity) {
         super(belongToTickingEntity, properties);
         this.tileEntity = tileEntity;
     }
 
-    public APBlockEntityBlock(RegistryObject<BlockEntityType<T>> tileEntity, boolean belongToTickingEntity) {
+    public APBlockEntityBlock(RegistryEntry<BlockEntityType<T>> tileEntity, boolean belongToTickingEntity) {
         this(tileEntity, Properties.of().sound(SoundType.METAL).mapColor(DyeColor.GRAY), belongToTickingEntity);
     }
 

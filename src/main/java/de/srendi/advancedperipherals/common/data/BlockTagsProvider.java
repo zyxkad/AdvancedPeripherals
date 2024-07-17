@@ -3,13 +3,13 @@ package de.srendi.advancedperipherals.common.data;
 import de.srendi.advancedperipherals.AdvancedPeripherals;
 import de.srendi.advancedperipherals.common.blocks.base.IHarvestableBlock;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
 import net.minecraft.data.tags.TagsProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.data.ExistingFileHelper;
 import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,7 +28,7 @@ public class BlockTagsProvider extends TagsProvider<Block> {
     private final PackOutput packOutput;
 
     protected BlockTagsProvider(@NotNull PackOutput packOutput, CompletableFuture<HolderLookup.Provider> future, @Nullable ExistingFileHelper existingFileHelper, DeferredRegister<Block> registry) {
-        super(packOutput, ForgeRegistries.BLOCKS.getRegistryKey(), future, AdvancedPeripherals.MOD_ID, existingFileHelper);
+        super(packOutput, BuiltInRegistries.BLOCK.getRegistryKey(), future, AdvancedPeripherals.MOD_ID, existingFileHelper);
         this.packOutput = packOutput;
         this.blockRegistry = registry;
     }
@@ -38,8 +38,8 @@ public class BlockTagsProvider extends TagsProvider<Block> {
         blockRegistry.getEntries().stream().map(RegistryObject::get).forEach(block -> {
             if (!(block instanceof IHarvestableBlock harvesterBlock))
                 throw new IllegalArgumentException("For any block you should define harvester logic!");
-            tag(harvesterBlock.getHarvestTag()).add(ForgeRegistries.BLOCKS.getResourceKey(block).get());
-            tag(harvesterBlock.getToolTag()).add(ForgeRegistries.BLOCKS.getResourceKey(block).get());
+            tag(harvesterBlock.getHarvestTag()).add(BuiltInRegistries.BLOCK.getResourceKey(block).get());
+            tag(harvesterBlock.getToolTag()).add(BuiltInRegistries.BLOCK.getResourceKey(block).get());
         });
     }
 

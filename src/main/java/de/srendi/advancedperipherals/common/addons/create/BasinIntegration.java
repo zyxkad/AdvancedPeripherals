@@ -4,11 +4,11 @@ import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 import dan200.computercraft.api.lua.LuaFunction;
 import de.srendi.advancedperipherals.common.util.LuaConverter;
 import de.srendi.advancedperipherals.lib.peripherals.APGenericPeripheral;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -36,7 +36,7 @@ public class BasinIntegration implements APGenericPeripheral {
             FluidStack fluid = handler.getFluidInTank(i);
             Map<String, Object> data = new HashMap<>();
             data.put("amount", fluid.getAmount());
-            data.put("fluid", ForgeRegistries.FLUIDS.getKey(fluid.getFluid()).toString());
+            data.put("fluid", BuiltInRegistries.FLUID.getKey(fluid.getFluid()).toString());
             tanks.add(data);
         }
         return tanks;
@@ -54,7 +54,7 @@ public class BasinIntegration implements APGenericPeripheral {
             FluidStack fluid = handler.getFluidInTank(i);
             Map<String, Object> data = new HashMap<>();
             data.put("amount", fluid.getAmount());
-            data.put("fluid", ForgeRegistries.FLUIDS.getKey(fluid.getFluid()).toString());
+            data.put("fluid", BuiltInRegistries.FLUID.getKey(fluid.getFluid()).toString());
             tanks.add(data);
         }
         return tanks;

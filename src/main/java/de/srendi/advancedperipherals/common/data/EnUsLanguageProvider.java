@@ -7,13 +7,13 @@ import de.srendi.advancedperipherals.common.setup.CCRegistration;
 import de.srendi.advancedperipherals.common.setup.Items;
 import de.srendi.advancedperipherals.common.setup.Villagers;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.common.data.LanguageProvider;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Supplier;
@@ -158,11 +158,11 @@ public class EnUsLanguageProvider extends LanguageProvider {
     }
 
     private void addTooltip(Item item, String name) {
-        addTooltip(ForgeRegistries.ITEMS.getKey(item).getPath(), name);
+        addTooltip(BuiltInRegistries.ITEM.getKey(item).getPath(), name);
     }
 
     private void addTooltip(Block block, String name) {
-        addTooltip(ForgeRegistries.BLOCKS.getKey(block).getPath(), name);
+        addTooltip(BuiltInRegistries.BLOCK.getKey(block).getPath(), name);
     }
 
     private void addTooltip(String tooltip, String name) {

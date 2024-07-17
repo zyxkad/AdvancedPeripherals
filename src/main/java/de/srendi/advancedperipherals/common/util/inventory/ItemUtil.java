@@ -14,7 +14,6 @@ import org.apache.logging.log4j.Level;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.CloneNotSupportedException;
 import java.util.ArrayList;
 import java.util.List;
 
