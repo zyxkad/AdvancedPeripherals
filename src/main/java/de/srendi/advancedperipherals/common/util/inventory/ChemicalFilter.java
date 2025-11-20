@@ -125,7 +125,7 @@ public class ChemicalFilter extends GenericFilter<ChemicalStack> {
         return newFilter;
     }
 
-    public ChemicalFilter copyWithAmount(int amount) {
+    public ChemicalFilter copyWithAmount(long amount) {
         ChemicalFilter newFilter = this.copy();
         newFilter.amount = amount;
         return newFilter;

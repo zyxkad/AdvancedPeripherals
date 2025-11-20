@@ -76,9 +76,9 @@ public class InventoryUtil {
             }
 
             for (int i : toSlots) {
-                ItemStack existing = inventoryTo.getStackInSlot(i);
+                ItemStack stack = inventoryTo.getStackInSlot(i);
                 ItemStack extracted = storageFrom.extractItem(
-                    (existing.isEmpty() ? filter : ItemFilter.fromStack(existing))
+                    (stack.isEmpty() ? filter : ItemFilter.fromStack(stack))
                         .copyWithCount(needs),
                     true
                 );
@@ -87,6 +87,9 @@ public class InventoryUtil {
                 }
                 ItemStack remaining = inventoryTo.insertItem(i, extracted, false);
                 int inserted = extracted.getCount() - remaining.getCount();
+                if (inserted == 0) {
+                    continue;
+                }
                 needs -= inserted;
                 extracted.setCount(inserted);
                 storageFrom.extractItem(ItemFilter.fromStack(extracted), false);
@@ -120,6 +123,9 @@ public class InventoryUtil {
                 ? ItemHandlerHelper.insertItem(inventoryTo, extracted, false)
                 : inventoryTo.insertItem(toSlot, extracted, false);
             int inserted = extracted.getCount() - remaining.getCount();
+            if (inserted == 0) {
+                continue;
+            }
             needs -= inserted;
             inventoryFrom.extractItem(i, inserted, false);
             if (needs <= 0) {

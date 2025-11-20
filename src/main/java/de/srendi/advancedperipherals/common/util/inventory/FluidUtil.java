@@ -38,17 +38,27 @@ public class FluidUtil {
 
         // The logic changes with storage systems since these systems do not have slots
         if (inventoryFrom instanceof IStorageSystemFluidHandler storageFrom) {
-            FluidStack extracted = storageFrom.drain(filter, IFluidHandler.FluidAction.SIMULATE);
-            if (extracted.isEmpty()) {
-                return 0;
+            for (int i = 0; i < inventoryTo.getTanks() && needs >= 0; i++) {
+                FluidStack stack = inventoryTo.getFluidInTank(i);
+                if (!(stack.isEmpty() || filter.test(stack))) {
+                    continue;
+                }
+                FluidStack extracted = storageFrom.drain(
+                    (stack.isEmpty() ? filter : FluidFilter.fromStack(stack))
+                        .copyWithAmount(needs),
+                    IFluidHandler.FluidAction.SIMULATE
+                );
+                if (extracted.isEmpty()) {
+                    continue;
+                }
+                int inserted = inventoryTo.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
+                if (inserted == 0) {
+                    continue;
+                }
+                needs -= inserted;
+                extracted.setAmount(inserted);
+                storageFrom.drain(FluidFilter.fromStack(extracted), IFluidHandler.FluidAction.EXECUTE);
             }
-            int inserted = inventoryTo.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
-            if (inserted == 0) {
-                return 0;
-            }
-            needs -= inserted;
-            extracted.setAmount(inserted);
-            storageFrom.drain(FluidFilter.fromStack(extracted), IFluidHandler.FluidAction.EXECUTE);
             return filter.getAmount() - needs;
         }
 
@@ -62,6 +72,9 @@ public class FluidUtil {
                 continue;
             }
             int inserted = inventoryTo.fill(extracted, IFluidHandler.FluidAction.EXECUTE);
+            if (inserted == 0) {
+                continue;
+            }
             needs -= inserted;
             extracted.setAmount(inserted);
             inventoryFrom.drain(extracted, IFluidHandler.FluidAction.EXECUTE);
